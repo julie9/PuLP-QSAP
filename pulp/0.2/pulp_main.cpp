@@ -98,7 +98,7 @@ int main(int argc, char** argv)
   {
     print_usage_full(argv);
     exit(0);
-  }  
+  }
 
   int n = 0;
   long m = 0;
@@ -171,25 +171,28 @@ int main(int argc, char** argv)
       default:
         abort();
     }
-  }  
+  }
 
   double elt = 0.0;
   double avg = 0.0;
 
   printf("Reading in %s ... ", graph_name);
   elt = timer();
-  read_graph(graph_name, n, m, out_array, out_degree_list, 
+
+  read_graph(graph_name, n, m, out_array, out_degree_list,
              vertex_weights, edge_weights, vertex_weights_sum);
-  pulp_graph_t g = {n, m, out_array, out_degree_list, 
+
+  pulp_graph_t g = {n, m, out_array, out_degree_list,
                     vertex_weights, edge_weights, vertex_weights_sum};
+                    
   elt = timer() - elt;
   printf("... Done: %9.6lf\n", elt);
 
   parts = new int[g.n];
   for (int i = 0; i < num_partitions; ++i)
-  {  
+  {
     if (strlen(parts_in) != 0)
-    {  
+    {
       printf("Reading in parts file %s ... ", parts_in);
       elt = timer();
       do_lp_init = false;
@@ -203,10 +206,18 @@ int main(int argc, char** argv)
     else
       for (int i = 0; i < g.n; ++i) parts[i] = rand() % num_parts;
 
-    pulp_part_control_t ppc = {vert_balance, edge_balance, 
-      do_lp_init, do_bfs_init, do_edge_balance, do_maxcut_balance,
-      false, pulp_seed};
-    
+
+      pulp_part_control_t ppc = {
+        .vert_balance      = vert_balance,
+        .edge_balance      = edge_balance,
+        .do_lp_init        = do_lp_init,
+        .do_bfs_init       = do_bfs_init,
+        .do_edge_balance   = do_edge_balance,
+        .do_maxcut_balance = do_maxcut_balance,
+        .verbose_output    = false,
+        .pulp_seed         = pulp_seed
+      };
+
     printf("\nBeginning partitioning ... ");
     elt = timer();
     pulp_run(&g, &ppc, parts, num_parts);
@@ -225,7 +236,7 @@ int main(int argc, char** argv)
     if (num_partitions > 1)
     {
       strcat(temp_out, ".");
-      stringstream ss; 
+      stringstream ss;
       ss << i;
       strcat(temp_out, ss.str().c_str());
     }

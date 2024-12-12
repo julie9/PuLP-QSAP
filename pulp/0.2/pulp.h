@@ -67,6 +67,7 @@ typedef struct {
   int* edge_weights;
   long vertex_weights_sum;
 } pulp_graph_t;
+
 #define out_degree(g, n) (g.out_degree_list[n+1] - g.out_degree_list[n])
 #define out_vertices(g, n) &g.out_array[g.out_degree_list[n]]
 #define out_weights(g, n) &g.edge_weights[g.out_degree_list[n]]
@@ -78,7 +79,7 @@ typedef struct {
 
   bool do_lp_init;
   bool do_bfs_init;
-  bool do_repart;
+  // bool do_repart; // not used.
   bool do_edge_balance;
   bool do_maxcut_balance;
 
@@ -88,7 +89,7 @@ typedef struct {
 } pulp_part_control_t;
 
 
-extern "C" int pulp_run(pulp_graph_t* g, pulp_part_control_t* ppc, 
+extern "C" int pulp_run(pulp_graph_t* g, pulp_part_control_t* ppc,
           int* parts, int num_parts);
 
 double timer();

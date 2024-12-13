@@ -1,4 +1,16 @@
+#include <cassert>
+using namespace std;
 
+/*
+ ######
+ #     # ######   ##   #####       ##   #####       #
+ #     # #       #  #  #    #     #  #  #    #      #
+ ######  #####  #    # #    #    #    # #    #      #
+ #   #   #      ###### #    #    ###### #    #      #
+ #    #  #      #    # #    #    #    # #    # #    #
+ #     # ###### #    # #####     #    # #####   ####
+
+*/
 void read_adj(char* filename, int& n, long& m,
   int*& out_array, long*& out_degree_list,
   bool has_vert_weights, bool has_edge_weights,
@@ -20,19 +32,40 @@ void read_adj(char* filename, int& n, long& m,
   for (int i = 0; i < n+1; ++i)
     out_degree_list[i] = 0;
 
-  long count = 0;
-  int cur_vert = 0;
+	long count              = 0;
+	int  cur_vert           = 0;
+	bool is_intro_line_read = false;
 
+	// =======================================================
+	// Open file
+	// =======================================================
   infile.open(filename);
-  getline(infile, line);
+	if (!infile.is_open())
+	{
+		fprintf(stderr, "Error opening file: %s\n", filename);
+		abort();
+	}
 
+	// =======================================================
+	// Read file
+	// =======================================================
   while (getline(infile, line))
   {
+
+		if (line[0] == '%') continue; // Skip lines starting with '%'
+    // Skip the first line(n,m already read in read_graph)
+		if (is_intro_line_read == false)
+		{
+			is_intro_line_read = true;
+			continue;
+		}
+
     stringstream ss(line);
     out_degree_list[cur_vert] = count;
     if (has_vert_weights)
     {
       getline(ss, val, ' ');
+      // printf("val: %s\n", val.c_str());
       vertex_weights[cur_vert] = atoi(val.c_str());
       vertex_weights_sum += vertex_weights[cur_vert];
     }
@@ -49,31 +82,46 @@ void read_adj(char* filename, int& n, long& m,
     ++cur_vert;
 
     while (getline(ss, val, ' '))
-    {
-      out_array[count] = atoi(val.c_str())-1;
-      if (has_edge_weights)
+		{
+      // Skip empty strings
+			if(!val.empty())
       {
-        getline(ss, val, ' ');
-        edge_weights[count] = atoi(val.c_str());
+        out_array[count] = atoi(val.c_str())-1;
+        if (has_edge_weights)
+        {
+          getline(ss, val, ' ');
+          edge_weights[count] = atoi(val.c_str());
+        }
+        else if (has_vert_weights)
+        {
+          edge_weights[count] = 1;
+        }
+        /*else
+        {
+          edge_weights[count] = rand() % 10;
+        }*/
+        ++count;
       }
-      else if (has_vert_weights)
-      {
-        edge_weights[count] = 1;
-      }
-      /*else
-      {
-        edge_weights[count] = rand() % 10;
-      }*/
-      ++count;
     }
+    // printf("Processed vertex %d, count: %ld\n", cur_vert, count);
   }
   out_degree_list[cur_vert] = count;
+  // printf("cur_vert: %d, n: %d, count: %ld, m: %ld\n", cur_vert, n, count, m);
   assert(cur_vert == n);
   assert(count == m);
 
-  infile.close();  
+  infile.close();
 }
 
+/*
+ ######
+ #     # ######   ##   #####      ####  #####    ##   #####  #    #
+ #     # #       #  #  #    #    #    # #    #  #  #  #    # #    #
+ ######  #####  #    # #    #    #      #    # #    # #    # ######
+ #   #   #      ###### #    #    #  ### #####  ###### #####  #    #
+ #    #  #      #    # #    #    #    # #   #  #    # #      #    #
+ #     # ###### #    # #####      ####  #    # #    # #      #    #
+*/
 void read_graph(char* filename, int& n, long& m,
   int*& out_array, long*& out_degree_list,
   int*& vertex_weights, int*& edge_weights, long& vertex_weights_sum)
@@ -83,7 +131,19 @@ void read_graph(char* filename, int& n, long& m,
   int format = 0;
 
   infile.open(filename);
-  getline(infile, line); printf("%s\n", line.c_str());
+
+  if (!infile.is_open())
+  {
+    fprintf(stderr, "Error: could not open input file\n");
+    abort();
+  }
+
+  // Skip comments lines starting with '%'
+  while (getline(infile, line))
+    if (line[0] != '%')  break;
+
+  printf("%s\n", line.c_str());
+
   sscanf(line.c_str(), "%d %li %d", &n, &m, &format);
   m *= 2;
   infile.close();
@@ -100,6 +160,7 @@ void read_graph(char* filename, int& n, long& m,
       fprintf (stderr, "Unknown format specification: '%d'\n", format);
       abort();
   }
+  // printf("Reading graph with %d vertices and %li edges\n", n, m);
 
   read_adj(filename, n, m, out_array, out_degree_list,
     has_vert_weights, has_edge_weights,
@@ -107,6 +168,15 @@ void read_graph(char* filename, int& n, long& m,
 }
 
 
+/*
+ ######
+ #     # ######   ##   #####     #####    ##   #####  #####  ####
+ #     # #       #  #  #    #    #    #  #  #  #    #   #   #
+ ######  #####  #    # #    #    #    # #    # #    #   #    ####
+ #   #   #      ###### #    #    #####  ###### #####    #        #
+ #    #  #      #    # #    #    #      #    # #   #    #   #    #
+ #     # ###### #    # #####     #      #    # #    #   #    ####
+*/
 void read_parts(char* filename, int num_verts, int* parts)
 {
   ifstream infile;
@@ -122,6 +192,15 @@ void read_parts(char* filename, int num_verts, int* parts)
   infile.close();
 }
 
+/*
+ #     #
+ #  #  # #####  # ##### ######    #####    ##   #####  #####  ####
+ #  #  # #    # #   #   #         #    #  #  #  #    #   #   #
+ #  #  # #    # #   #   #####     #    # #    # #    #   #    ####
+ #  #  # #####  #   #   #         #####  ###### #####    #        #
+ #  #  # #   #  #   #   #         #      #    # #   #    #   #    #
+  ## ##  #    # #   #   ######    #      #    # #    #   #    ####
+*/
 void write_parts(char* filename, int num_verts, int* parts)
 {
   ofstream outfile;

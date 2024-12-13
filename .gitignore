@@ -3,7 +3,6 @@
 *.a
 
 # Ignore the executables
-Makefile
 *.exe
 pulp/*/pulp
 xtrapulp/*/xtrapulp

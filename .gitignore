@@ -1,2 +1,19 @@
-pulp/0.2/pulp.o
-pulp/0.2/pulp
+# Ignore the object files
+*.o
+*.a
+
+# Ignore the executables
+Makefile
+*.exe
+pulp/*/pulp
+xtrapulp/*/xtrapulp
+
+# Ignore data, results and temp directories
+data/
+results/
+temp/
+*.log
+*.sh
+
+# Ignore the generated files (VSCode)
+.vscode/settings.json

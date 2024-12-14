@@ -479,9 +479,8 @@ int* label_prop_weighted(pulp_graph_t& g, int num_parts, int* parts,
 int*
 label_prop_weighted_interpart(pulp_graph_t& g, int num_parts, int* parts, int label_prop_iter, double balance_vert_lower)
 {
-  //TODO : add interpartition weights consideration
 
-  int num_verts = g.n;
+  int  num_verts = g.n;
   bool has_vwgts = (g.vertex_weights != NULL);
   bool has_ewgts = (g.edge_weights != NULL);
   if (!has_vwgts) g.vertex_weights_sum = g.n;
@@ -490,19 +489,23 @@ label_prop_weighted_interpart(pulp_graph_t& g, int num_parts, int* parts, int la
   for (int i = 0; i < num_parts; ++i)
     part_sizes[i] = 0;
 
-  int num_changes;
-  int* queue = new int[num_verts*QUEUE_MULTIPLIER];
-  int* queue_next = new int[num_verts*QUEUE_MULTIPLIER];
-  bool* in_queue = new bool[num_verts];
+  int   num_changes   = 0;
+  int*  queue         = new int[num_verts*QUEUE_MULTIPLIER];
+  int*  queue_next    = new int[num_verts*QUEUE_MULTIPLIER];
+  bool* in_queue      = new bool[num_verts];
   bool* in_queue_next = new bool[num_verts];
-  int queue_size = num_verts;
-  int next_size = 0;
+  int   queue_size    = num_verts;
+  int   next_size     = 0;
 
   double avg_size = (double)g.vertex_weights_sum / (double)num_parts;
   double min_size = avg_size * balance_vert_lower;
 
   #pragma omp parallel
   {
+
+    // =====================================================
+    // Initialize parts randomly
+    // =====================================================
     xs1024star_t xs;
     xs1024star_seed((unsigned long)(seed + omp_get_thread_num()), &xs);
 
@@ -540,37 +543,58 @@ label_prop_weighted_interpart(pulp_graph_t& g, int num_parts, int* parts, int la
     int thread_queue_size = 0;
     int thread_start;
 
+    // =====================================================
+    // Outer loop for label propagation
+    // =====================================================
     for (int num_iter = 0; num_iter < label_prop_iter; ++num_iter)
     {
       num_changes = 0;
 
+      // =====================================================
+      // Perform label propagation iterations for all vertices
+      // =====================================================
       #pragma omp for schedule(guided) reduction(+:num_changes)
       for (int i = 0; i < queue_size; ++i)
       {
-        int v = queue[i];
-        int v_weight = 1;
+        int v    = queue[i]; // For each vertex in the queue (i.e. all vertices)
+        int part = parts[v]; // Get the partition of the vertex
+
+        // -----------------------------------------------------
+        // Vertex weight
+        // -----------------------------------------------------
+        int v_weight = 1; // Get the weight of the vertex
         if (has_vwgts) v_weight = g.vertex_weights[v];
 
         in_queue[v] = false;
         for (int j = 0; j < num_parts; ++j)
           part_counts[j] = 0;
 
-        unsigned out_degree = out_degree(g, v);
-        int*     outs       = out_vertices(g, v);
-        int*     weights    = out_weights(g, v);
+        unsigned out_degree = out_degree(g, v);   // Get the outgoing degree of the vertex
+        int*     outs       = out_vertices(g, v); // Get the outgoing vertices (id of the vertices)
+        int*     weights    = out_weights(g, v);  // Get the weights of the outgoing edges
         for (unsigned j = 0; j < out_degree; ++j)
         {
-          int    out        = outs[j];
-          int    part_out   = parts[out];
+          int out      = outs[j];    // Get the id of one of the outgoing vertices
+          int part_out = parts[out]; // Get the partition of the outgoing vertex
           double weight_out = 1.0;
           if (has_ewgts) weight_out = (double)weights[j];
           part_counts[part_out] += (double)out_degree(g, out)*weight_out;
         }
 
-        int part      = parts[v];
+        // -----------------------------------------------------
+        // Inter-partition weight
+        // -----------------------------------------------------
+        int* partition_comm_weights = out_interpart_weights(g, part, num_parts);
+        for (int p = 0; p < num_parts; ++p)
+            part_counts[p] *= partition_comm_weights[p];
+
+        // -----------------------------------------------------
+        // Check which partition has the maximum count of outgoing edges
+        // -----------------------------------------------------
+
         int max_count = -1;
         int max_part  = -1;
-        int num_max   = 0;
+        int num_max   =  0; // Number of partitions with the maximum number of edges
         for (int p = 0; p < num_parts; ++p)
         {
           if (part_counts[p] == max_count)
@@ -586,9 +610,13 @@ label_prop_weighted_interpart(pulp_graph_t& g, int num_parts, int* parts, int la
           }
         }
 
+        // If there are multiple partitions with the maximum count, randomly select one
         if (num_max > 1)
           max_part = part_counts[(int)xs1024star_next(&xs) % num_max];
 
+        // -----------------------------------------------------
+        // Swap the vertex to the partition with the maximum count
+        // -----------------------------------------------------
         if (max_part != part &&
             (part_sizes[part] - v_weight > (int)min_size))
         {
@@ -597,7 +625,7 @@ label_prop_weighted_interpart(pulp_graph_t& g, int num_parts, int* parts, int la
           #pragma omp atomic
           part_sizes[part] -= v_weight;
 
-          parts[v] = max_part;
+          parts[v] = max_part; // Move vertex v to the partition with the maximum count
           ++num_changes;
 
           if (!in_queue_next[v])
@@ -617,6 +645,7 @@ label_prop_weighted_interpart(pulp_graph_t& g, int num_parts, int* parts, int la
             }
           }
 
+				// Add the neighbors of vertex v to the queue
           for (unsigned j = 0; j < out_degree; ++j)
           {
             if (!in_queue_next[outs[j]])
@@ -649,7 +678,7 @@ label_prop_weighted_interpart(pulp_graph_t& g, int num_parts, int* parts, int la
 
       #pragma omp barrier
 
-      ++num_iter;
+		  // ++num_iter; // Notes(julie9): removed, already incremented in the for loop
 
       #pragma omp single
       {
@@ -657,21 +686,21 @@ label_prop_weighted_interpart(pulp_graph_t& g, int num_parts, int* parts, int la
           printf("%d\n", next_size);
         #endif
 
-        int*  temp          = queue;
+        int*  temp    = queue;
         queue         = queue_next;
         queue_next    = temp;
-        bool* temp_b        = in_queue;
+        bool* temp_b  = in_queue;
         in_queue      = in_queue_next;
         in_queue_next = temp_b;
 
         queue_size = next_size;
-        next_size  = 0;
+        next_size = 0;
 
         #if OUTPUT_STEP
           evaluate_quality(g, num_parts, parts);
         #endif
       } // end single
-    } // end while
+    } // end for num_iter
 
     delete [] part_counts;
   } // end parallel

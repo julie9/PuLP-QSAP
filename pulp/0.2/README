@@ -59,7 +59,7 @@ $ ./pulp [graphfile] [num parts] [options]
 n m fmt
 v2 v3 v4
 v1 v3 v5 v6 v8
-v1 v2 
+v1 v2
 ... etc
 
 PuLP also supports vertex and edge weights, where fmt is the format specified by:
@@ -72,21 +72,21 @@ Vertex weights 'vW' are given as the first value in each line:
 n m 010
 vW1 v2 v3 v4
 vW2 v1 v3 v5 v6 v8
-vW3 v1 v2 
+vW3 v1 v2
 ... etc
 
 Edge weights 'eW' are given after each edge:
 n m 001
 v2 eW12 v3 eW13 v4 eW14
 v1 eW21 v3 eW23 v5 eW25 v6 eW26 v8 eW28
-v1 eW31 v2 eW32 
+v1 eW31 v2 eW32
 ... etc
 
 And both can be used concurrently:
 n m 011
 vW1 v2 eW12 v3 eW13 v4 eW14
 vW2 v1 eW21 v3 eW23 v5 eW25 v6 eW26 v8 eW28
-vW3 v1 eW31 v2 eW32 
+vW3 v1 eW31 v2 eW32
 ... etc
 
 [num parts] is the number of desired partitions (>=2)
@@ -108,6 +108,8 @@ Options:
       Input parts file [default: none]
   -q:
       Evaluate generated partition quality
+  -w [file]:
+      Considering weighted connexion between partitions
 
 [Input/Output Files] has n lines. Each line contains a single integer [0...(num parts-1)] that corresponds to the part assignment of the vertex identifier of that line number. I.e., a '5' on line 7 would indicate that vertex 7 is assigned to part 5.
 

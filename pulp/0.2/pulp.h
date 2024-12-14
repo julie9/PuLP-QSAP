@@ -59,18 +59,20 @@
 //typedef int32_t pulp_vert_t;
 
 typedef struct {
-  int n;
-  long m;
-  int* out_array;
+  int   n;
+  long  m;
+  int*  out_array;
   long* out_degree_list;
-  int* vertex_weights;
-  int* edge_weights;
-  long vertex_weights_sum;
+  int*  vertex_weights;
+  int*  edge_weights;
+  long  vertex_weights_sum;
+  int*  interpartition_weights;
 } pulp_graph_t;
 
-#define out_degree(g, n) (g.out_degree_list[n+1] - g.out_degree_list[n])
-#define out_vertices(g, n) &g.out_array[g.out_degree_list[n]]
-#define out_weights(g, n) &g.edge_weights[g.out_degree_list[n]]
+#define out_degree(g, n)                        (g.out_degree_list[n+1] - g.out_degree_list[n])
+#define out_vertices(g, n)                      &g.out_array[g.out_degree_list[n]]
+#define out_weights(g, n)                       &g.edge_weights[g.out_degree_list[n]]
+#define out_interpart_weights(g, p, num_part)   &g.interpartition_weights[p * num_part]
 
 
 typedef struct {
@@ -82,6 +84,7 @@ typedef struct {
   // bool do_repart; // not used.
   bool do_edge_balance;
   bool do_maxcut_balance;
+  bool with_label_weights;
 
   bool verbose_output;
 
@@ -90,11 +93,10 @@ typedef struct {
 
 
 extern "C" int pulp_run(pulp_graph_t* g, pulp_part_control_t* ppc,
-          int* parts, int num_parts);
+                        int* parts, int num_parts);
 
 double timer();
 
 void evaluate_quality(pulp_graph_t& g, int num_parts, int* parts);
-
 
 #endif

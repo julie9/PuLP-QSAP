@@ -9,10 +9,11 @@ xtrapulp/*/xtrapulp
 
 # Ignore data, results and temp directories
 data/
-results/
+results*/
 temp/
 *.log
 *.sh
+output*.txt
 
 # Ignore the generated files (VSCode)
 .vscode/settings.json

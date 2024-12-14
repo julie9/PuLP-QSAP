@@ -28,37 +28,37 @@ void read_adj(char* filename, int& n, long& m,
   else edge_weights = NULL;
   vertex_weights_sum = 0;
 
-#pragma omp parallel for
+  #pragma omp parallel for
   for (int i = 0; i < n+1; ++i)
     out_degree_list[i] = 0;
 
-	long count              = 0;
-	int  cur_vert           = 0;
-	bool is_intro_line_read = false;
+  long count              = 0;
+  int  cur_vert           = 0;
+  bool is_intro_line_read = false;
 
-	// =======================================================
-	// Open file
-	// =======================================================
+  // =======================================================
+  // Open file
+  // =======================================================
   infile.open(filename);
-	if (!infile.is_open())
-	{
-		fprintf(stderr, "Error opening file: %s\n", filename);
-		abort();
-	}
+  if (!infile.is_open())
+  {
+    fprintf(stderr, "Error opening file: %s\n", filename);
+    abort();
+  }
 
-	// =======================================================
-	// Read file
-	// =======================================================
+  // =======================================================
+  // Read file
+  // =======================================================
   while (getline(infile, line))
   {
 
-		if (line[0] == '%') continue; // Skip lines starting with '%'
+    if (line[0] == '%') continue; // Skip lines starting with '%'
     // Skip the first line(n,m already read in read_graph)
-		if (is_intro_line_read == false)
-		{
-			is_intro_line_read = true;
-			continue;
-		}
+    if (is_intro_line_read == false)
+    {
+      is_intro_line_read = true;
+      continue;
+    }
 
     stringstream ss(line);
     out_degree_list[cur_vert] = count;
@@ -82,9 +82,9 @@ void read_adj(char* filename, int& n, long& m,
     ++cur_vert;
 
     while (getline(ss, val, ' '))
-		{
+    {
       // Skip empty strings
-			if(!val.empty())
+      if(!val.empty())
       {
         out_array[count] = atoi(val.c_str())-1;
         if (has_edge_weights)
@@ -165,6 +165,63 @@ void read_graph(char* filename, int& n, long& m,
   read_adj(filename, n, m, out_array, out_degree_list,
     has_vert_weights, has_edge_weights,
     vertex_weights, edge_weights, vertex_weights_sum);
+}
+
+
+
+/*
+ ######
+ #     # ######   ##   #####     # #    # ##### ###### #####        #####    ##   #####  #####    #    # ###### #  ####  #    # #####  ####
+ #     # #       #  #  #    #    # ##   #   #   #      #    #       #    #  #  #  #    #   #      #    # #      # #    # #    #   #   #
+ ######  #####  #    # #    #    # # #  #   #   #####  #    # ##### #    # #    # #    #   #      #    # #####  # #      ######   #    ####
+ #   #   #      ###### #    #    # #  # #   #   #      #####        #####  ###### #####    #      # ## # #      # #  ### #    #   #        #
+ #    #  #      #    # #    #    # #   ##   #   #      #   #        #      #    # #   #    #      ##  ## #      # #    # #    #   #   #    #
+ #     # ###### #    # #####     # #    #   #   ###### #    #       #      #    # #    #   #      #    # ###### #  ####  #    #   #    ####
+*/
+void
+read_interpartition_weights(const char* filename, int num_parts, int*& interpartition_weights)
+{
+  printf("Reading interpartition weights from file %s\n", filename);
+
+  ifstream file(filename);
+  if (!file.is_open())
+  {
+    fprintf(stderr, "Error: Could not open file %s\n", filename);
+    abort();
+  }
+
+  interpartition_weights = new int[num_parts * num_parts];
+  string line;
+  int index = 0;
+
+  while (getline(file, line))
+  {
+    istringstream iss(line);
+    int weight;
+    while (iss >> weight)
+    {
+      if (index >= num_parts * num_parts)
+      {
+        fprintf(stderr, "Error: More weights in file than expected for num_parts * num_parts.\n");
+        delete[] interpartition_weights;
+        abort();
+      }
+      interpartition_weights[index++] = weight;
+    }
+  }
+
+  if (index != num_parts * num_parts)
+  {
+    fprintf(stderr, "Error: The number of weights in the file does not match num_parts * num_parts.\n");
+    delete[] interpartition_weights;
+    abort();
+  }
+  file.close();
+
+  // printf("\ninterpartition_weights = ");
+  // for (int i = 0; i < num_parts * num_parts; ++i)
+  //   printf("%d ", interpartition_weights[i]);
+  // printf("\n");
 }
 
 

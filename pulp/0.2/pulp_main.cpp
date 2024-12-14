@@ -49,6 +49,7 @@ using namespace std;
 #include <assert.h>
 #include <fstream>
 #include <sstream>
+#include <iostream>
 #include <getopt.h>
 #include <string.h>
 #include <omp.h>
@@ -100,131 +101,157 @@ int main(int argc, char** argv)
     exit(0);
   }
 
-  int n = 0;
-  long m = 0;
-  int* out_array = NULL;
-  long* out_degree_list = NULL;
-  int* vertex_weights = NULL;
-  long vertex_weights_sum = 0;
-  int* edge_weights;
-  char* graph_name = strdup(argv[1]);
-  char* num_parts_str = strdup(argv[2]);
-  int num_parts = atoi(num_parts_str);
-  int* parts;
-  int num_partitions = 1;
+  int   n                      = 0;
+  long  m                      = 0;
+  int*  out_array              = NULL;
+  long* out_degree_list        = NULL;
+  int*  vertex_weights         = NULL;
+  long  vertex_weights_sum     = 0;
+  int*  edge_weights           = NULL;
+  int*  interpartition_weights = NULL;
 
-  double vert_balance = 1.10;
-  double edge_balance = 1.50;
-  char parts_out[1024]; parts_out[0] = '\0';
-  char parts_in[1024]; parts_in[0] = '\0';
+  char* graph_name      = strdup(argv[1]);
+  char* num_parts_str   = strdup(argv[2]);
+  int   num_parts       = atoi(num_parts_str);
+  int*  parts;
+  int   num_partitions  = 1;
 
-  bool do_bfs_init = true;
-  bool do_lp_init = false;
-  bool do_edge_balance = false;
-  bool do_maxcut_balance = false;
-  bool eval_quality = false;
-  int pulp_seed = rand();
+  char   parts_out[1024]; parts_out[0] = '\0';
+  char   parts_in[1024]; parts_in[0]   = '\0';
+  char   label_weights_file[1024]      = "\0";
+
+  double vert_balance       = 1.10;
+  double edge_balance       = 1.50;
+  bool   do_bfs_init        = true;
+  bool   do_lp_init         = false;
+  bool   with_label_weights = false;
+  bool   do_edge_balance    = false;
+  bool   do_maxcut_balance  = false;
+  bool   eval_quality       = false;
+  int    pulp_seed          = rand();
 
   char c;
-  while ((c = getopt (argc, argv, "v:e:i:o:cs:lm:q")) != -1)
+  while ((c = getopt (argc, argv, "v:e:i:o:cs:lm:qw:")) != -1)
   {
     switch (c)
     {
-      case 'v':
+      case 'v':                               // -v flag : vertex balance
         vert_balance = strtod(optarg, NULL);
         break;
-      case 'e':
+      case 'e':                               // -e flag : edge balance
         edge_balance = strtod(optarg, NULL);
         do_edge_balance = true;
         break;
-      case 'i':
+      case 'i':                               // -i flag : input parts file
         strcat(parts_in, optarg);
         break;
-      case 'o':
+      case 'o':                               // -o flag : output parts file
         strcat(parts_out, optarg);
         break;
-      case 'c':
+      case 'c':                               // -c flag : minimize per-part cut
         do_maxcut_balance = true;
         break;
-      case 'm':
+      case 'm':                               // -m flag : generate multiple assignments
         num_partitions = atoi(optarg);
         break;
-      case 's':
+      case 's':                               // -s flag : set seed
         pulp_seed = atoi(optarg);
         break;
-      case 'l':
+      case 'l':                               // -l flag : do label prop init
         do_lp_init = true;
         do_bfs_init = false;
         break;
-      case 'q':
+      case 'q':                               // -q flag : evaluate quality
         eval_quality = true;
         break;
+      case 'w':                               // -w flag : inter-partition weights file
+        strcpy(label_weights_file, optarg);
+        with_label_weights = true;
+        break;
       case '?':
+      {
         if (optopt == 'v' || optopt == 'e' || optopt == 'i' || optopt == 'o' || optopt == 'm')
           fprintf (stderr, "Option -%c requires an argument.\n", optopt);
         else if (isprint (optopt))
           fprintf (stderr, "Unknown option `-%c'.\n", optopt);
         else
-          fprintf (stderr, "Unknown option character `\\x%x'.\n",
-      optopt);
+          fprintf (stderr, "Unknown option character `\\x%x'.\n", optopt);
         print_usage_full(argv);
+        break;
+      }
       default:
         abort();
     }
   }
 
   double elt = 0.0;
-  double avg = 0.0;
-
-  printf("Reading in %s ... ", graph_name);
   elt = timer();
+
+  // ==========================================================
+  // Read in graph
+  // ==========================================================
+  printf("Reading in %s ... \n", graph_name);
 
   read_graph(graph_name, n, m, out_array, out_degree_list,
              vertex_weights, edge_weights, vertex_weights_sum);
 
+  if (with_label_weights)
+    read_interpartition_weights(label_weights_file, num_parts,
+                                interpartition_weights);
+
   pulp_graph_t g = {n, m, out_array, out_degree_list,
-                    vertex_weights, edge_weights, vertex_weights_sum};
-                    
+                    vertex_weights, edge_weights, vertex_weights_sum,
+                    interpartition_weights};
+
   elt = timer() - elt;
-  printf("... Done: %9.6lf\n", elt);
+  printf("... Done reading input file(s): %9.6lf\n", elt);
 
   parts = new int[g.n];
   for (int i = 0; i < num_partitions; ++i)
   {
     if (strlen(parts_in) != 0)
     {
-      printf("Reading in parts file %s ... ", parts_in);
+      printf("Reading in parts file %s ... \n", parts_in);
       elt = timer();
       do_lp_init = false;
       do_bfs_init = false;
+
       read_parts(parts_in, g.n, parts);
+
       elt = timer() - elt;
-      printf("Done: %9.6lf\n", elt);
+      printf("... Done reading parts file: %9.6lf\n", elt);
     }
     else if (do_bfs_init)
       for (int j = 0; j < g.n; ++j) parts[j] = -1;
     else
       for (int i = 0; i < g.n; ++i) parts[i] = rand() % num_parts;
 
+    pulp_part_control_t ppc = {
+      .vert_balance       = vert_balance,
+      .edge_balance       = edge_balance,
+      .do_lp_init         = do_lp_init,
+      .do_bfs_init        = do_bfs_init,
+      .do_edge_balance    = do_edge_balance,
+      .do_maxcut_balance  = do_maxcut_balance,
+      .with_label_weights = with_label_weights,
+      .verbose_output     = true,
+      .pulp_seed          = pulp_seed
+    };
 
-      pulp_part_control_t ppc = {
-        .vert_balance      = vert_balance,
-        .edge_balance      = edge_balance,
-        .do_lp_init        = do_lp_init,
-        .do_bfs_init       = do_bfs_init,
-        .do_edge_balance   = do_edge_balance,
-        .do_maxcut_balance = do_maxcut_balance,
-        .verbose_output    = false,
-        .pulp_seed         = pulp_seed
-      };
-
-    printf("\nBeginning partitioning ... ");
+    // ==========================================================
+    // Run PULP
+    // ==========================================================
+    printf("Beginning partitioning ... \n");
     elt = timer();
-    pulp_run(&g, &ppc, parts, num_parts);
-    elt = timer() - elt;
-    avg *= elt;
-    printf("Partitioning Time: %9.6lf\n\n", elt);
 
+    pulp_run(&g, &ppc, parts, num_parts);
+
+    elt = timer() - elt;
+    printf("Partitioning Time: %9.6lf seconds\n\n", elt);
+
+    // ==========================================================
+    // Write output
+    // ==========================================================
     char temp_out[1024]; temp_out[0] = '\0';
     strcat(temp_out, parts_out);
     if (strlen(temp_out) == 0)
@@ -240,16 +267,19 @@ int main(int argc, char** argv)
       ss << i;
       strcat(temp_out, ss.str().c_str());
     }
-    printf("writing parts file %s ... ", temp_out);
+    printf("Writing parts file %s ... \n", temp_out);
     elt = timer();
+
     write_parts(temp_out, g.n, parts);
+
     elt = timer() - elt;
-    printf("Done: %9.6lf\n", elt);
+    printf(" Done: %9.6lf seconds\n", elt);
 
     if (eval_quality)
       evaluate_quality(g, num_parts, parts);
   }
 
+  delete [] interpartition_weights;
   delete [] parts;
   delete [] out_array;
   delete [] out_degree_list;

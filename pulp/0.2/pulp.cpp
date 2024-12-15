@@ -88,7 +88,9 @@ pulp_run(pulp_graph_t* g, pulp_part_control_t* ppc, int* parts, int num_parts)
   bool   do_vert_balance    = true;
   bool   do_edge_balance    = ppc->do_edge_balance;
   bool   do_maxcut_balance  = ppc->do_maxcut_balance;
-  bool   with_label_weights = ppc->with_label_weights;
+  bool   using_interpartition_weights = ppc->using_interpartition_weights;
+  bool   using_partition_weights      = ppc->using_partition_weights;
+  // TODO(julie9): implement usage of partition weights
 
   int balance_outer_iter =  1;
   int label_prop_iter    =  3;
@@ -113,7 +115,7 @@ pulp_run(pulp_graph_t* g, pulp_part_control_t* ppc, int* parts, int num_parts)
 		printf("\tdo_vert_balance: %s\n", do_vert_balance ? "true" : "false");
 		printf("\tdo_edge_balance: %s\n", do_edge_balance ? "true" : "false");
 		printf("\tdo_maxcut_balance: %s\n", do_maxcut_balance ? "true" : "false");
-    printf("\twith_label_weights: %s\n", with_label_weights ? "true" : "false");
+    printf("\tusing_interpartition_weights: %s\n", using_interpartition_weights ? "true" : "false");
 		printf("\tnum_parts: %d\n", num_parts);
 		}
 
@@ -127,7 +129,7 @@ pulp_run(pulp_graph_t* g, pulp_part_control_t* ppc, int* parts, int num_parts)
   #### #    # #   #       ####    #   #    #  ####  ######
   */
   // .........................................................................
-  if (with_label_weights &&
+  if (using_interpartition_weights &&
       do_label_prop &&
       (g->vertex_weights != NULL || g->edge_weights != NULL) &&
       g->interpartition_weights != NULL)
@@ -206,7 +208,7 @@ pulp_run(pulp_graph_t* g, pulp_part_control_t* ppc, int* parts, int num_parts)
       if (verbose) printf("\t\t Done: %9.6lf seconds\n", elt3);
     }
     // .........................................................................
-    else if (with_label_weights &&
+    else if (using_interpartition_weights &&
              do_vert_balance &&
              (g->vertex_weights != NULL ||
              g->edge_weights != NULL))
@@ -308,7 +310,7 @@ pulp_run(pulp_graph_t* g, pulp_part_control_t* ppc, int* parts, int num_parts)
       if (verbose) printf("\t\t Done: %9.6lf seconds\n", elt3);
     }
     // .........................................................................
-    else if (with_label_weights &&
+    else if (using_interpartition_weights &&
              do_edge_balance &&
              do_maxcut_balance &&
              (g->vertex_weights != NULL ||

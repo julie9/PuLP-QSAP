@@ -109,6 +109,7 @@ int main(int argc, char** argv)
   long  vertex_weights_sum     = 0;
   int*  edge_weights           = NULL;
   int*  interpartition_weights = NULL;
+  int*  partition_weights      = NULL;
 
   char* graph_name      = strdup(argv[1]);
   char* num_parts_str   = strdup(argv[2]);
@@ -116,22 +117,26 @@ int main(int argc, char** argv)
   int*  parts;
   int   num_partitions  = 1;
 
-  char   parts_out[1024]; parts_out[0] = '\0';
-  char   parts_in[1024]; parts_in[0]   = '\0';
-  char   label_weights_file[1024]      = "\0";
+  char parts_out[1024]; parts_out[0] = '\0';
+  char parts_in[1024]; parts_in[0]   = '\0';
+
+  char interpart_weights_file[1024] = "\0";
+  char partition_weights_file[1024] = "\0";
 
   double vert_balance       = 1.10;
   double edge_balance       = 1.50;
   bool   do_bfs_init        = true;
   bool   do_lp_init         = false;
-  bool   with_label_weights = false;
   bool   do_edge_balance    = false;
   bool   do_maxcut_balance  = false;
   bool   eval_quality       = false;
   int    pulp_seed          = rand();
 
+  bool using_interpartition_weights = false;
+  bool using_partition_weights      = false;
+
   char c;
-  while ((c = getopt (argc, argv, "v:e:i:o:cs:lm:qw:")) != -1)
+  while ((c = getopt (argc, argv, "v:e:i:o:cs:lm:qw:p:")) != -1)
   {
     switch (c)
     {
@@ -165,8 +170,12 @@ int main(int argc, char** argv)
         eval_quality = true;
         break;
       case 'w':                               // -w flag : inter-partition weights file
-        strcpy(label_weights_file, optarg);
-        with_label_weights = true;
+        strcpy(interpart_weights_file, optarg);
+        using_interpartition_weights = true;
+        break;
+      case 'p':                               // -p flag : partition weights file
+        strcpy(partition_weights_file, optarg);
+        using_partition_weights = true;
         break;
       case '?':
       {
@@ -195,13 +204,17 @@ int main(int argc, char** argv)
   read_graph(graph_name, n, m, out_array, out_degree_list,
              vertex_weights, edge_weights, vertex_weights_sum);
 
-  if (with_label_weights)
-    read_interpartition_weights(label_weights_file, num_parts,
+  if (using_interpartition_weights)
+    read_interpartition_weights(interpart_weights_file, num_parts,
                                 interpartition_weights);
+
+  if (using_partition_weights)
+    read_partition_weights_from_file(partition_weights_file, num_parts,
+                                     partition_weights);
 
   pulp_graph_t g = {n, m, out_array, out_degree_list,
                     vertex_weights, edge_weights, vertex_weights_sum,
-                    interpartition_weights};
+                    interpartition_weights, partition_weights};
 
   elt = timer() - elt;
   printf("... Done reading input file(s): %9.6lf\n", elt);
@@ -233,7 +246,8 @@ int main(int argc, char** argv)
       .do_bfs_init        = do_bfs_init,
       .do_edge_balance    = do_edge_balance,
       .do_maxcut_balance  = do_maxcut_balance,
-      .with_label_weights = with_label_weights,
+      .using_interpartition_weights = using_interpartition_weights,
+      .using_partition_weights      = using_partition_weights,
       .verbose_output     = true,
       .pulp_seed          = pulp_seed
     };

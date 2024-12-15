@@ -169,6 +169,59 @@ void read_graph(char* filename, int& n, long& m,
 
 
 
+
+/*
+ ######
+ #     # ######   ##   #####     #    # ###### #  ####  #    # #####    #####    ##   #####  #####
+ #     # #       #  #  #    #    #    # #      # #    # #    #   #      #    #  #  #  #    #   #
+ ######  #####  #    # #    #    #    # #####  # #      ######   #      #    # #    # #    #   #
+ #   #   #      ###### #    #    # ## # #      # #  ### #    #   #      #####  ###### #####    #
+ #    #  #      #    # #    #    ##  ## #      # #    # #    #   #      #      #    # #   #    #
+ #     # ###### #    # #####     #    # ###### #  ####  #    #   #      #      #    # #    #   #
+*/
+void read_partition_weights_from_file(const char* filename, int num_elements, int*& array)
+{
+    std::ifstream file(filename);
+    if (!file.is_open())
+    {
+        std::cerr << "Error: Could not open file " << filename << std::endl;
+        std::abort();
+    }
+
+    array = new int[num_elements];
+    int count = 0;
+    std::string line;
+
+    while (count < num_elements && std::getline(file, line))
+    {
+        std::istringstream iss(line);
+        int number;
+        while (count < num_elements && iss >> number)
+        {
+            array[count++] = number;
+        }
+    }
+
+    if (count != num_elements)
+    {
+        std::cerr << "Error: The number of integers in the file is less than expected." << std::endl;
+        delete[] array;
+        std::abort();
+    }
+
+    // printf("\npartition_weights = ");
+    // for (int i = 0; i < num_elements; ++i)
+    //     printf("%d ", array[i]);
+    // printf("\n");
+
+    file.close();
+}
+
+
+
+
+
+
 /*
  ######
  #     # ######   ##   #####     # #    # ##### ###### #####        #####    ##   #####  #####    #    # ###### #  ####  #    # #####  ####

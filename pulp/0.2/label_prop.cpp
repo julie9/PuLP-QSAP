@@ -485,6 +485,9 @@ label_prop_weighted_interpart(pulp_graph_t& g, int num_parts, int* parts, int la
   bool has_ewgts = (g.edge_weights != NULL);
   if (!has_vwgts) g.vertex_weights_sum = g.n;
 
+  // bool has_ipwgts = (g.interpartition_weights != NULL); // Not used, always true.
+  bool has_p_capacities  = (g.partition_capacities != NULL);
+
   int* part_sizes = new int[num_parts];
   for (int i = 0; i < num_parts; ++i)
     part_sizes[i] = 0;
@@ -502,24 +505,64 @@ label_prop_weighted_interpart(pulp_graph_t& g, int num_parts, int* parts, int la
 
   #pragma omp parallel
   {
-
     // =====================================================
     // Initialize parts randomly
     // =====================================================
     xs1024star_t xs;
     xs1024star_seed((unsigned long)(seed + omp_get_thread_num()), &xs);
 
-    #pragma omp for
-    for (int i = 0; i < num_verts; ++i)
-      parts[i] = (int)((unsigned)xs1024star_next(&xs) % (unsigned)num_parts);
+    if (has_p_capacities)
+    {
+      // Assign vertices at random to partitions, based on the partition capacities
+      // The probability of assigning a vertex to a partition is proportional to the
+      // capacity of the partition.
+      int total_capacities = 0;
+      for (int i = 0; i < num_parts; ++i)
+        total_capacities += g.partition_capacities[i];
 
+      double* cumulative_distribution = new double[num_parts];
+      cumulative_distribution[0] = (double)g.partition_capacities[0] / total_capacities;
+      for (int i = 1; i < num_parts; ++i)
+        cumulative_distribution[i] = cumulative_distribution[i - 1]
+                                    + (double)g.partition_capacities[i] / total_capacities;
+      // for (int i = 0; i < num_parts; ++i)
+      //   printf("cumulative_distribution: %lf\n", cumulative_distribution[i]);
+
+      #pragma omp for
+      for (int i = 0; i < num_verts; ++i)
+      {
+        double rand_val = (double)xs1024star_next(&xs) / (double)UINT64_MAX;
+        // printf("rand_val: %lf\n", rand_val);
+        for (int j = 0; j < num_parts; ++j)
+        {
+          if (rand_val <= cumulative_distribution[j])
+          {
+            parts[i] = j;
+            break;
+          }
+        }
+      }
+      delete[] cumulative_distribution;
+    }
+    else
+    {
+      // Randomly assign vertices to partitions, if partition weights are not provided
+      #pragma omp for
+      for (int i = 0; i < num_verts; ++i)
+        parts[i] = (int)((unsigned)xs1024star_next(&xs) % (unsigned)num_parts);
+    }
+
+
+    // Compute the size of each partition
     long* part_sizes_thread = new long[num_parts];
     for (int i = 0; i < num_parts; ++i)
       part_sizes_thread[i] = 0;
 
     #pragma omp for schedule(static) nowait
     for (int i = 0; i < num_verts; ++i)
-      if (has_vwgts)
+      if (has_p_capacities)
+        part_sizes_thread[parts[i]] += g.vertex_weights[i] / g.partition_capacities[parts[i]];
+      else if (has_vwgts)
         part_sizes_thread[parts[i]] += g.vertex_weights[i];
       else
         ++part_sizes_thread[parts[i]];
@@ -565,6 +608,10 @@ label_prop_weighted_interpart(pulp_graph_t& g, int num_parts, int* parts, int la
         int v_weight = 1; // Get the weight of the vertex
         if (has_vwgts) v_weight = g.vertex_weights[v];
 
+        // Partition capacity (meaning the computational capacity of the partition)
+        int p_capacity = 1; // Get the weight of the partition
+        if (has_p_capacities) p_capacity = g.partition_capacities[part];
+
         in_queue[v] = false;
         for (int j = 0; j < num_parts; ++j)
           part_counts[j] = 0;
@@ -591,7 +638,6 @@ label_prop_weighted_interpart(pulp_graph_t& g, int num_parts, int* parts, int la
         // -----------------------------------------------------
         // Check which partition has the maximum count of outgoing edges
         // -----------------------------------------------------
-
         int max_count = -1;
         int max_part  = -1;
         int num_max   =  0; // Number of partitions with the maximum number of edges
@@ -609,24 +655,29 @@ label_prop_weighted_interpart(pulp_graph_t& g, int num_parts, int* parts, int la
             part_counts[num_max++] = p;
           }
         }
-
         // If there are multiple partitions with the maximum count, randomly select one
         if (num_max > 1)
           max_part = part_counts[(int)xs1024star_next(&xs) % num_max];
+
 
         // -----------------------------------------------------
         // Swap the vertex to the partition with the maximum count
         // -----------------------------------------------------
         if (max_part != part &&
-            (part_sizes[part] - v_weight > (int)min_size))
+           (part_sizes[part] - (v_weight / p_capacity) > (int)min_size))
         {
-          #pragma omp atomic
-          part_sizes[max_part] += v_weight;
-          #pragma omp atomic
-          part_sizes[part] -= v_weight;
-
           parts[v] = max_part; // Move vertex v to the partition with the maximum count
           ++num_changes;
+
+          // Partition weight of the partition with the maximum count
+          int p_max_capacity = 1;
+          if (has_p_capacities) p_max_capacity = g.partition_capacities[max_part];
+
+          #pragma omp atomic
+          part_sizes[max_part] += (v_weight / p_max_capacity);
+
+          #pragma omp atomic
+          part_sizes[part]     -= (v_weight / p_capacity);
 
           if (!in_queue_next[v])
           {

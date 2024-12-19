@@ -106,7 +106,7 @@ void read_adj(char* filename, int& n, long& m,
     // printf("Processed vertex %d, count: %ld\n", cur_vert, count);
   }
   out_degree_list[cur_vert] = count;
-  // printf("cur_vert: %d, n: %d, count: %ld, m: %ld\n", cur_vert, n, count, m);
+  printf("cur_vert: %d, n: %d, count: %ld, m: %ld\n", cur_vert, n, count, m);
   assert(cur_vert == n);
   assert(count == m);
 

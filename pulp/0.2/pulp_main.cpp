@@ -108,8 +108,9 @@ int main(int argc, char** argv)
   int*  vertex_weights         = NULL;
   long  vertex_weights_sum     = 0;
   int*  edge_weights           = NULL;
+  
   int*  interpartition_weights = NULL;
-  int*  partition_weights      = NULL;
+  int*  partition_capacities   = NULL;
 
   char* graph_name      = strdup(argv[1]);
   char* num_parts_str   = strdup(argv[2]);
@@ -133,7 +134,7 @@ int main(int argc, char** argv)
   int    pulp_seed          = rand();
 
   bool using_interpartition_weights = false;
-  bool using_partition_weights      = false;
+  bool using_partition_capacities      = false;
 
   char c;
   while ((c = getopt (argc, argv, "v:e:i:o:cs:lm:qw:p:")) != -1)
@@ -173,13 +174,14 @@ int main(int argc, char** argv)
         strcpy(interpart_weights_file, optarg);
         using_interpartition_weights = true;
         break;
-      case 'p':                               // -p flag : partition weights file
+      case 'p':                               // -p flag : partition weights file (computational power)
         strcpy(partition_weights_file, optarg);
-        using_partition_weights = true;
+        using_partition_capacities = true;
         break;
       case '?':
       {
-        if (optopt == 'v' || optopt == 'e' || optopt == 'i' || optopt == 'o' || optopt == 'm')
+        if (optopt == 'v' || optopt == 'e' || optopt == 'i' || optopt == 'o' || optopt == 'm' ||
+            optopt == 's' || optopt == 'w' || optopt == 'p')
           fprintf (stderr, "Option -%c requires an argument.\n", optopt);
         else if (isprint (optopt))
           fprintf (stderr, "Unknown option `-%c'.\n", optopt);
@@ -197,28 +199,39 @@ int main(int argc, char** argv)
   elt = timer();
 
   // ==========================================================
-  // Read in graph
+  // Read in graphs
   // ==========================================================
   printf("Reading in %s ... \n", graph_name);
 
-  read_graph(graph_name, n, m, out_array, out_degree_list,
-             vertex_weights, edge_weights, vertex_weights_sum);
+  // TODO(julie9): Implement usage of partition weights without interpartition weights,
+  //              but for now, partition weights require interpartition weights.
+  //              (but the reverse is okay).
+  if (using_partition_capacities && !using_interpartition_weights)
+  {
+      fprintf(stderr, "Error: The -p option requires the -w option to be specified as well.\n");
+      print_usage_full(argv);
+      exit(EXIT_FAILURE);
+  }
 
   if (using_interpartition_weights)
     read_interpartition_weights(interpart_weights_file, num_parts,
                                 interpartition_weights);
 
-  if (using_partition_weights)
+  if (using_partition_capacities)
     read_partition_weights_from_file(partition_weights_file, num_parts,
-                                     partition_weights);
+                                     partition_capacities);
+
+  read_graph(graph_name, n, m, out_array, out_degree_list,
+             vertex_weights, edge_weights, vertex_weights_sum);
 
   pulp_graph_t g = {n, m, out_array, out_degree_list,
                     vertex_weights, edge_weights, vertex_weights_sum,
-                    interpartition_weights, partition_weights};
+                    interpartition_weights, partition_capacities};
 
   elt = timer() - elt;
   printf("... Done reading input file(s): %9.6lf\n", elt);
 
+  // .........................................................................
   parts = new int[g.n];
   for (int i = 0; i < num_partitions; ++i)
   {
@@ -226,7 +239,8 @@ int main(int argc, char** argv)
     {
       printf("Reading in parts file %s ... \n", parts_in);
       elt = timer();
-      do_lp_init = false;
+
+      do_lp_init  = false;
       do_bfs_init = false;
 
       read_parts(parts_in, g.n, parts);
@@ -240,16 +254,16 @@ int main(int argc, char** argv)
       for (int i = 0; i < g.n; ++i) parts[i] = rand() % num_parts;
 
     pulp_part_control_t ppc = {
-      .vert_balance       = vert_balance,
-      .edge_balance       = edge_balance,
-      .do_lp_init         = do_lp_init,
-      .do_bfs_init        = do_bfs_init,
-      .do_edge_balance    = do_edge_balance,
-      .do_maxcut_balance  = do_maxcut_balance,
+      .vert_balance                 = vert_balance,
+      .edge_balance                 = edge_balance,
+      .do_lp_init                   = do_lp_init,
+      .do_bfs_init                  = do_bfs_init,
+      .do_edge_balance              = do_edge_balance,
+      .do_maxcut_balance            = do_maxcut_balance,
       .using_interpartition_weights = using_interpartition_weights,
-      .using_partition_weights      = using_partition_weights,
-      .verbose_output     = true,
-      .pulp_seed          = pulp_seed
+      .using_partition_capacities      = using_partition_capacities,
+      .verbose_output               = true,
+      .pulp_seed                    = pulp_seed
     };
 
     // ==========================================================

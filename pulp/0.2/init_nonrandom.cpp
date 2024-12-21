@@ -47,100 +47,112 @@ using namespace std;
 
 extern int seed;
 
-
+/*
+########  ########  ######     #### ##    ## #### ########
+##     ## ##       ##    ##     ##  ###   ##  ##     ##
+##     ## ##       ##           ##  ####  ##  ##     ##
+########  ######    ######      ##  ## ## ##  ##     ##
+##     ## ##             ##     ##  ##  ####  ##     ##
+##     ## ##       ##    ##     ##  ##   ###  ##     ##
+########  ##        ######     #### ##    ## ####    ##
+*/
 // multi-source bfs with random start points
 int* init_nonrandom(pulp_graph_t& g, int num_parts, int* parts)
 {
-  int num_verts = g.n;
-  int* queue = new int[num_verts*QUEUE_MULTIPLIER];
+  int  num_verts  = g.n;
+  int* queue      = new int[num_verts*QUEUE_MULTIPLIER];
   int* queue_next = new int[num_verts*QUEUE_MULTIPLIER];
-  int queue_size = num_parts;
-  int next_size = 0;
+  int  queue_size = num_parts;
+  int  next_size  = 0;
 
-#pragma omp parallel
-{  
-  int thread_queue[ THREAD_QUEUE_SIZE ];
-  int thread_queue_size = 0;
-  int thread_start;
-
-  xs1024star_t xs;
-  xs1024star_seed((unsigned long)(seed + omp_get_thread_num()), &xs);
-
-#pragma omp for
-  for (int i = 0; i < num_verts; ++i)
-    parts[i] = -1;
-
-#pragma omp single
-{
-  for (int i = 0; i < num_parts; ++i)
+  #pragma omp parallel
   {
-    int vert = (int)xs1024star_next(&xs) % num_verts;
-    while (parts[vert] != -1) {vert = (int)xs1024star_next(&xs) % num_verts;}
-    parts[vert] = i;
-    queue[i] = vert;
-  }
-}
+    int thread_queue[ THREAD_QUEUE_SIZE ];
+    int thread_queue_size = 0;
+    int thread_start;
 
-  while (queue_size > 0)
-  {
-#pragma omp for schedule(guided) nowait
-    for (int i = 0; i < queue_size; ++i)
+    xs1024star_t xs;
+    xs1024star_seed((unsigned long)(seed + omp_get_thread_num()), &xs);
+
+    #pragma omp for
+    for (int i = 0; i < num_verts; ++i)
+      parts[i] = -1;
+
+    #pragma omp single
     {
-      int vert = queue[i];
-      int part = parts[vert];
-      long out_degree = out_degree(g, vert);
-      int* outs = out_vertices(g, vert);
-      for (long j = 0; j < out_degree; ++j)
+      for (int i = 0; i < num_parts; ++i)
       {
-        int out = outs[j];
-        if (parts[out] == -1)
-        {
-          parts[out] = part;
-          thread_queue[thread_queue_size++] = out;
+        int   vert = (int)xs1024star_next(&xs) % num_verts;                        // random start point
+        while (parts[vert] != -1) {vert = (int)xs1024star_next(&xs) % num_verts;}  // random start point not already taken
+        parts[vert] = i;                                                           // assign start point to part i
+        queue[i]    = vert;                                                        // add start point to queue
+      }
+    }
 
-          if (thread_queue_size == THREAD_QUEUE_SIZE)
+    while (queue_size > 0)
+    {
+      #pragma omp for schedule(guided) nowait
+      for (int i = 0; i < queue_size; ++i)
+      {
+        int  vert       = queue[i];     // start point
+        int  part       = parts[vert];  // part of start point
+        long out_degree = out_degree(g, vert);
+        int* outs       = out_vertices(g, vert);
+        for (long j = 0; j < out_degree; ++j)
+        {
+          int out = outs[j];
+          if (parts[out] == -1)
           {
-#pragma omp atomic capture
-            thread_start = next_size += thread_queue_size;
-            
-            thread_start -= thread_queue_size;
-            for (int l = 0; l < thread_queue_size; ++l)
-              queue_next[thread_start+l] = thread_queue[l];
-            thread_queue_size = 0;
+            parts[out] = part;  // assign 'out' to part of 'vert' (start point)
+            thread_queue[thread_queue_size++] = out; // add 'out' to thread queue
+
+            if (thread_queue_size == THREAD_QUEUE_SIZE)
+            {
+              #pragma omp atomic capture
+              thread_start = next_size += thread_queue_size;
+
+              thread_start -= thread_queue_size;
+              for (int l = 0; l < thread_queue_size; ++l)
+                queue_next[thread_start+l] = thread_queue[l];
+              thread_queue_size = 0;
+            }
           }
         }
       }
-    }
-#pragma omp atomic capture
-    thread_start = next_size += thread_queue_size;
-    
-    thread_start -= thread_queue_size;
-    for (int l = 0; l < thread_queue_size; ++l)
-      queue_next[thread_start+l] = thread_queue[l];
-    thread_queue_size = 0;
+      #pragma omp atomic capture
+      thread_start = next_size += thread_queue_size;
+      // i.e.:
+      //     thread_start = next_size;
+      //     next_size    = next_size + thread_queue_size;
 
-#pragma omp barrier
+      thread_start -= thread_queue_size;
+      for (int l = 0; l < thread_queue_size; ++l)
+        queue_next[thread_start+l] = thread_queue[l];
+      thread_queue_size = 0;
 
-#pragma omp single
-{
-    int* temp = queue;
-    queue = queue_next;
-    queue_next = temp;
+      #pragma omp barrier
 
-    queue_size = next_size;
-    next_size = 0;
-}
-  } // end while
+      #pragma omp single
+      {
+          int* temp  = queue;
+          queue      = queue_next;
+          queue_next = temp;
 
-#pragma omp for
-  for (int i = 0; i < num_verts; ++i)
-    if (parts[i] < 0)
-      parts[i] = (unsigned)xs1024star_next(&xs) % num_parts;
-} // end parallel
-  
-#if OUTPUT_STEP
-  evaluate_quality(g, num_parts, parts);
-#endif
+          queue_size = next_size;
+          next_size  = 0;
+      }
+    } // end while loop over queue size
+
+    // assign any remaining vertices to random parts
+    #pragma omp for
+    for (int i = 0; i < num_verts; ++i)
+      if (parts[i] < 0)
+        parts[i] = (unsigned)xs1024star_next(&xs) % num_parts;
+  } // end parallel
+
+  #if OUTPUT_STEP
+    evaluate_quality(g, num_parts, parts);
+  #endif
 
   delete [] queue;
   delete [] queue_next;
@@ -149,113 +161,122 @@ int* init_nonrandom(pulp_graph_t& g, int num_parts, int* parts)
 }
 
 
-
-
+/*
+########  ########  ######     #### ##    ## #### ########     ######  #### ######## ########
+##     ## ##       ##    ##     ##  ###   ##  ##     ##       ##    ##  ##       ##  ##
+##     ## ##       ##           ##  ####  ##  ##     ##       ##        ##      ##   ##
+########  ######    ######      ##  ## ## ##  ##     ##        ######   ##     ##    ######
+##     ## ##             ##     ##  ##  ####  ##     ##             ##  ##    ##     ##
+##     ## ##       ##    ##     ##  ##   ###  ##     ##       ##    ##  ##   ##      ##
+########  ##        ######     #### ##    ## ####    ##        ######  #### ######## ########
+*/
 // multi-source bfs with random start points
 // constrain maximal size of part, randomly assign any remaining
 int* init_nonrandom_constrained(pulp_graph_t& g, int num_parts, int* parts)
 {
   int num_verts = g.n;
 
-  int* queue = new int[num_verts*QUEUE_MULTIPLIER];
-  int* queue_next = new int[num_verts*QUEUE_MULTIPLIER];
-  int* part_sizes = new int[num_parts];
-  int queue_size = num_parts;
-  int next_size = 0;
-  int max_part_size = num_verts / num_parts * 2;
+  int* queue         = new int[num_verts*QUEUE_MULTIPLIER];
+  int* queue_next    = new int[num_verts*QUEUE_MULTIPLIER];
+  int* part_sizes    = new int[num_parts];
+  int  queue_size    = num_parts;
+  int  next_size     = 0;
+  int  max_part_size = num_verts / num_parts * 2; // 2x average part size
 
-#pragma omp parallel
-{  
-  int thread_queue[ THREAD_QUEUE_SIZE ];
-  int thread_queue_size = 0;
-  int thread_start;
-
-  xs1024star_t xs;
-  xs1024star_seed((unsigned long)(seed + omp_get_thread_num()), &xs);
-
-#pragma omp for
-  for (int i = 0; i < num_verts; ++i)
-    parts[i] = -1;
-
-#pragma omp single
-{
-  for (int i = 0; i < num_parts; ++i)
+  #pragma omp parallel
   {
-    int vert = (int)xs1024star_next(&xs) % num_verts;
-    while (parts[vert] != -1) {vert = xs1024star_next(&xs) % num_verts;}
-    parts[vert] = i;
-    queue[i] = vert;
-    part_sizes[i] = 1;
-  }
-}
+    int thread_queue[ THREAD_QUEUE_SIZE ];
+    int thread_queue_size = 0;
+    int thread_start;
 
-  while (queue_size > 0)
-  {
-#pragma omp for schedule(guided) nowait
-    for (int i = 0; i < queue_size; ++i)
+    xs1024star_t xs;
+    xs1024star_seed((unsigned long)(seed + omp_get_thread_num()), &xs);
+
+    #pragma omp for
+    for (int i = 0; i < num_verts; ++i)
+      parts[i] = -1;
+
+    #pragma omp single
     {
-      int vert = queue[i];
-      int part = parts[vert];
-      long out_degree = out_degree(g, vert);
-      int* outs = out_vertices(g, vert);
-      for (long j = 0; j < out_degree; ++j)
+      for (int i = 0; i < num_parts; ++i)
       {
-        int out = outs[j];
-        if (parts[out] == -1)
+        int vert = (int)xs1024star_next(&xs) % num_verts;
+        while (parts[vert] != -1) {vert = xs1024star_next(&xs) % num_verts;}
+        parts[vert]   = i;
+        queue[i]      = vert;
+        part_sizes[i] = 1;
+      }
+    }
+
+    while (queue_size > 0)
+    {
+      #pragma omp for schedule(guided) nowait
+      for (int i = 0; i < queue_size; ++i)
+      {
+        int  vert       = queue[i];               // start point
+        int  part       = parts[vert];            // part of start point
+        long out_degree = out_degree(g, vert);    // out degree of start point
+        int* outs       = out_vertices(g, vert);  // out vertices of start point
+        for (long j = 0; j < out_degree; ++j)
         {
-          if (part_sizes[part] < max_part_size)
-            parts[out] = part;
-          else
-            parts[out] = rand() % num_parts;
-
-      #pragma omp atomic
-          ++part_sizes[parts[out]];
-
-          thread_queue[thread_queue_size++] = out;
-          if (thread_queue_size == THREAD_QUEUE_SIZE)
+          int out = outs[j];
+          if (parts[out] == -1)
           {
-#pragma omp atomic capture
-            thread_start = next_size += thread_queue_size;
-            
-            thread_start -= thread_queue_size;
-            for (int l = 0; l < thread_queue_size; ++l)
-              queue_next[thread_start+l] = thread_queue[l];
-            thread_queue_size = 0;
+            // If part size is less than max_part_size, assign 'out' to part of 'vert'
+            // Otherwise, assign 'out' to a random part
+            if (part_sizes[part] < max_part_size)
+              parts[out] = part;
+            else
+              parts[out] = (int)((unsigned)xs1024star_next(&xs) % (unsigned)num_parts);
+
+            #pragma omp atomic
+            ++part_sizes[parts[out]]; // increment part size
+
+            thread_queue[thread_queue_size++] = out;
+            if (thread_queue_size == THREAD_QUEUE_SIZE)
+            {
+              #pragma omp atomic capture
+              thread_start = next_size += thread_queue_size;
+
+              thread_start -= thread_queue_size;
+              for (int l = 0; l < thread_queue_size; ++l)
+                queue_next[thread_start+l] = thread_queue[l];
+              thread_queue_size = 0;
+            }
           }
         }
       }
-    }
-#pragma omp atomic capture
-    thread_start = next_size += thread_queue_size;
-    
-    thread_start -= thread_queue_size;
-    for (int l = 0; l < thread_queue_size; ++l)
-      queue_next[thread_start+l] = thread_queue[l];
-    thread_queue_size = 0;
+      #pragma omp atomic capture
+      thread_start = next_size += thread_queue_size;
 
-#pragma omp barrier
+      thread_start -= thread_queue_size;
+      for (int l = 0; l < thread_queue_size; ++l)
+        queue_next[thread_start+l] = thread_queue[l];
+      thread_queue_size = 0;
 
-#pragma omp single
-{
-    int* temp = queue;
-    queue = queue_next;
-    queue_next = temp;
+      #pragma omp barrier
 
-    queue_size = next_size;
-    next_size = 0;
-}
-  } // end while
+      #pragma omp single
+      {
+          int* temp  = queue;
+          queue      = queue_next;
+          queue_next = temp;
 
-#pragma omp for
-  for (int i = 0; i < num_verts; ++i)
-    if (parts[i] == -1)
-      parts[i] = (int)((unsigned)xs1024star_next(&xs) % (unsigned)num_parts);
+          queue_size = next_size;
+          next_size  = 0;
+      }
+    } // end while
 
-} // end parallel
-  
-#if OUTPUT_STEP
-  evaluate_quality(g, num_parts, parts);
-#endif
+    // Assign any remaining vertices to random parts
+    #pragma omp for
+    for (int i = 0; i < num_verts; ++i)
+      if (parts[i] == -1)
+        parts[i] = (int)((unsigned)xs1024star_next(&xs) % (unsigned)num_parts);
+  } // end parallel
+
+  #if OUTPUT_STEP
+    evaluate_quality(g, num_parts, parts);
+  #endif
 
   delete [] queue;
   delete [] queue_next;

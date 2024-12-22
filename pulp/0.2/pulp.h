@@ -68,6 +68,7 @@ typedef struct {
   long  vertex_weights_sum;
   int*  interpartition_weights;
   int*  partition_capacities;
+  long  partition_capacities_sum;
 } pulp_graph_t;
 
 #define out_degree(g, n)                        (g.out_degree_list[n+1] - g.out_degree_list[n])
@@ -85,8 +86,8 @@ typedef struct {
   // bool do_repart; // not used.
   bool do_edge_balance;
   bool do_maxcut_balance;
-  bool using_interpartition_weights; // communication between partitions
-  bool using_partition_capacities;      // computational power of partitions (e.g. processors)
+  bool using_interpartition_weights;  // communication between partitions
+  bool using_partition_capacities;    // computational power of partitions (e.g. processors)
 
   bool verbose_output;
 

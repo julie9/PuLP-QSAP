@@ -78,6 +78,10 @@ void print_usage_full(char** argv)
   printf("\t\tInput parts file [default: none]\n");
   printf("\t-s [seed]:\n");
   printf("\t\tSet seed integer [default: random int]\n");
+  printf("\t-w [file]:\n");
+  printf("\t\tInter-partition weights file\n");
+  printf("\t-p [file]:\n");
+  printf("\t\tPartition weights file (computational power)\n");
   exit(0);
 }
 
@@ -101,16 +105,17 @@ int main(int argc, char** argv)
     exit(0);
   }
 
-  int   n                      = 0;
-  long  m                      = 0;
-  int*  out_array              = NULL;
-  long* out_degree_list        = NULL;
-  int*  vertex_weights         = NULL;
-  long  vertex_weights_sum     = 0;
-  int*  edge_weights           = NULL;
-  
-  int*  interpartition_weights = NULL;
-  int*  partition_capacities   = NULL;
+  int   n                  = 0;
+  long  m                  = 0;
+  int*  out_array          = NULL;
+  long* out_degree_list    = NULL;
+  int*  vertex_weights     = NULL;
+  long  vertex_weights_sum = 0;
+  int*  edge_weights       = NULL;
+
+  int* interpartition_weights   = NULL;
+  int* partition_capacities     = NULL;
+  long partition_capacities_sum = 0;
 
   char* graph_name      = strdup(argv[1]);
   char* num_parts_str   = strdup(argv[2]);
@@ -134,7 +139,7 @@ int main(int argc, char** argv)
   int    pulp_seed          = rand();
 
   bool using_interpartition_weights = false;
-  bool using_partition_capacities      = false;
+  bool using_partition_capacities   = false;
 
   char c;
   while ((c = getopt (argc, argv, "v:e:i:o:cs:lm:qw:p:")) != -1)
@@ -199,9 +204,9 @@ int main(int argc, char** argv)
   elt = timer();
 
   // ==========================================================
-  // Read in graphs
+  // Read in graph data
   // ==========================================================
-  printf("Reading in %s ... \n", graph_name);
+  printf("Reading in data for %s ... \n", graph_name);
 
   // TODO(julie9): Implement usage of partition weights without interpartition weights,
   //              but for now, partition weights require interpartition weights.
@@ -218,21 +223,31 @@ int main(int argc, char** argv)
                                 interpartition_weights);
 
   if (using_partition_capacities)
-    read_partition_weights_from_file(partition_weights_file, num_parts,
-                                     partition_capacities);
+    read_partition_capacities(partition_weights_file, num_parts,
+                              partition_capacities, partition_capacities_sum);
 
   read_graph(graph_name, n, m, out_array, out_degree_list,
              vertex_weights, edge_weights, vertex_weights_sum);
 
-  pulp_graph_t g = {n, m, out_array, out_degree_list,
-                    vertex_weights, edge_weights, vertex_weights_sum,
-                    interpartition_weights, partition_capacities};
+  pulp_graph_t g = {
+    .n                        = n,
+    .m                        = m,
+    .out_array                = out_array,
+    .out_degree_list          = out_degree_list,
+    .vertex_weights           = vertex_weights,
+    .edge_weights             = edge_weights,
+    .vertex_weights_sum       = vertex_weights_sum,
+    .interpartition_weights   = interpartition_weights,
+    .partition_capacities     = partition_capacities,
+    .partition_capacities_sum = partition_capacities_sum
+  };
 
   elt = timer() - elt;
   printf("... Done reading input file(s): %9.6lf\n", elt);
 
-  // .........................................................................
   parts = new int[g.n];
+
+  // .........................................................................
   for (int i = 0; i < num_partitions; ++i)
   {
     if (strlen(parts_in) != 0)
@@ -261,7 +276,7 @@ int main(int argc, char** argv)
       .do_edge_balance              = do_edge_balance,
       .do_maxcut_balance            = do_maxcut_balance,
       .using_interpartition_weights = using_interpartition_weights,
-      .using_partition_capacities      = using_partition_capacities,
+      .using_partition_capacities   = using_partition_capacities,
       .verbose_output               = true,
       .pulp_seed                    = pulp_seed
     };

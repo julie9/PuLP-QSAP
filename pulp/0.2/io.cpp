@@ -11,10 +11,11 @@ using namespace std;
  #     # ###### #    # #####     #    # #####   ####
 
 */
-void read_adj(char* filename, int& n, long& m,
-  int*& out_array, long*& out_degree_list,
-  bool has_vert_weights, bool has_edge_weights,
-  int*& vertex_weights, int*& edge_weights, long& vertex_weights_sum)
+void
+read_adj(char* filename, int& n, long& m,
+         int*& out_array, long*& out_degree_list,
+         bool has_vert_weights, bool has_edge_weights,
+         int*& vertex_weights, int*& edge_weights, long& vertex_weights_sum)
 {
   ifstream infile;
   string line;
@@ -122,9 +123,10 @@ void read_adj(char* filename, int& n, long& m,
  #    #  #      #    # #    #    #    # #   #  #    # #      #    #
  #     # ###### #    # #####      ####  #    # #    # #      #    #
 */
-void read_graph(char* filename, int& n, long& m,
-  int*& out_array, long*& out_degree_list,
-  int*& vertex_weights, int*& edge_weights, long& vertex_weights_sum)
+void
+read_graph(char* filename, int& n, long& m,
+           int*& out_array, long*& out_degree_list,
+           int*& vertex_weights, int*& edge_weights, long& vertex_weights_sum)
 {
   ifstream infile;
   string line;
@@ -172,14 +174,16 @@ void read_graph(char* filename, int& n, long& m,
 
 /*
  ######
- #     # ######   ##   #####     #    # ###### #  ####  #    # #####    #####    ##   #####  #####
- #     # #       #  #  #    #    #    # #      # #    # #    #   #      #    #  #  #  #    #   #
- ######  #####  #    # #    #    #    # #####  # #      ######   #      #    # #    # #    #   #
- #   #   #      ###### #    #    # ## # #      # #  ### #    #   #      #####  ###### #####    #
- #    #  #      #    # #    #    ##  ## #      # #    # #    #   #      #      #    # #   #    #
- #     # ###### #    # #####     #    # ###### #  ####  #    #   #      #      #    # #    #   #
+ #     # ######   ##   #####      ####    ##   #####    ##    ####  # ##### #   #
+ #     # #       #  #  #    #    #    #  #  #  #    #  #  #  #    # #   #    # #
+ ######  #####  #    # #    #    #      #    # #    # #    # #      #   #     #
+ #   #   #      ###### #    #    #      ###### #####  ###### #      #   #     #
+ #    #  #      #    # #    #    #    # #    # #      #    # #    # #   #     #
+ #     # ###### #    # #####      ####  #    # #      #    #  ####  #   #     #
 */
-void read_partition_weights_from_file(const char* filename, int num_elements, int*& array)
+void
+read_partition_capacities(const char* filename, int num_elements,
+                          int*& partition_capacities, long& partition_capacities_sum)
 {
     std::ifstream file(filename);
     if (!file.is_open())
@@ -188,30 +192,32 @@ void read_partition_weights_from_file(const char* filename, int num_elements, in
         std::abort();
     }
 
-    array = new int[num_elements];
+    partition_capacities     = new int[num_elements];
+    partition_capacities_sum = 0;
     int count = 0;
     std::string line;
 
     while (count < num_elements && std::getline(file, line))
     {
         std::istringstream iss(line);
-        int number;
-        while (count < num_elements && iss >> number)
+        int capacity;
+        while (count < num_elements && iss >> capacity)
         {
-            array[count++] = number;
+            partition_capacities[count++] = capacity;
+            partition_capacities_sum     += capacity;
         }
     }
 
     if (count != num_elements)
     {
         std::cerr << "Error: The number of integers in the file is less than expected." << std::endl;
-        delete[] array;
+        delete[] partition_capacities;
         std::abort();
     }
 
     // printf("\npartition_weights = ");
     // for (int i = 0; i < num_elements; ++i)
-    //     printf("%d ", array[i]);
+    //     printf("%d ", partition_capacities[i]);
     // printf("\n");
 
     file.close();
@@ -232,7 +238,8 @@ void read_partition_weights_from_file(const char* filename, int num_elements, in
  #     # ###### #    # #####     # #    #   #   ###### #    #       #      #    # #    #   #      #    # ###### #  ####  #    #   #    ####
 */
 void
-read_interpartition_weights(const char* filename, int num_parts, int*& interpartition_weights)
+read_interpartition_weights(const char* filename, int num_parts,
+                            int*& interpartition_weights)
 {
   printf("Reading interpartition weights from file %s\n", filename);
 

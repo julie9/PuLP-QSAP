@@ -92,15 +92,16 @@ pulp_run(pulp_graph_t* g, pulp_part_control_t* ppc, int* parts, int num_parts)
   bool   using_interpartition_weights = ppc->using_interpartition_weights;
   bool   using_partition_capacities   = ppc->using_partition_capacities;
 
-  int iter_mult = 5;
+  int iter_mult1 = 1;
+  int iter_mult2 = 0;
   int balance_outer_iter =  1;
-  int label_prop_iter    =  3 * iter_mult;
-  int vert_outer_iter    =  3 * iter_mult;
-  int vert_balance_iter  =  5 * iter_mult;
-  int vert_refine_iter   = 10 * iter_mult;
-  int edge_outer_iter    =  0;
-  int edge_balance_iter  =  0;
-  int edge_refine_iter   =  0;
+  int label_prop_iter    =  3 * iter_mult1;
+  int vert_outer_iter    =  3 * iter_mult1;
+  int vert_balance_iter  =  5 * iter_mult1;
+  int vert_refine_iter   = 10 * iter_mult1;
+  int edge_outer_iter    =  3 * iter_mult2;
+  int edge_balance_iter  =  5 * iter_mult2;
+  int edge_refine_iter   = 10 * iter_mult2;
 
   seed = ppc->pulp_seed;
 
@@ -118,6 +119,9 @@ pulp_run(pulp_graph_t* g, pulp_part_control_t* ppc, int* parts, int num_parts)
     printf("\tusing_interpartition_weights: %s\n", using_interpartition_weights ? "true" : "false");
     printf("\tusing_partition_capacities: %s\n", using_partition_capacities ? "true" : "false");
 		printf("\tnum_parts: %d\n", num_parts);
+    printf("\tvert_balance: %lf\n", vert_balance);
+    printf("\tedge_balance: %lf\n", edge_balance);
+    printf("\tseed: %d\n", seed);
 		}
 
   /*
@@ -130,28 +134,12 @@ pulp_run(pulp_graph_t* g, pulp_part_control_t* ppc, int* parts, int num_parts)
   #### #    # #   #       ####    #   #    #  ####  ######
   */
   // .........................................................................
-  if (using_interpartition_weights &&
-      using_partition_capacities &&
-      do_label_prop &&
+  if ((using_interpartition_weights || using_partition_capacities) &&
+       do_label_prop &&
       (g->vertex_weights != NULL || g->edge_weights != NULL) &&
-      g->interpartition_weights != NULL)
+       g->interpartition_weights != NULL)
   {
-    if (verbose) printf("\tDoing (weighted, with interpart. & part. weights) label prop stage with %d parts\n", num_parts);
-    elt2 = timer();
-
-    // Note(julie9): method if only interpart weights
-    label_prop_weighted_interpart(*g, num_parts, parts, label_prop_iter, vert_balance_lower);
-
-    elt2 = timer() - elt2;
-    if (verbose) printf("\t Done: %9.6lf seconds\n", elt2);
-  }
-  // .........................................................................
-  else if (using_interpartition_weights &&
-      do_label_prop &&
-      (g->vertex_weights != NULL || g->edge_weights != NULL) &&
-      g->interpartition_weights != NULL)
-  {
-    if (verbose) printf("\tDoing (weighted, with interpartition weights) label prop stage with %d parts\n", num_parts);
+    if (verbose) printf("\tDoing (weighted, with interpart.wghts / part.capacities) label prop stage with %d parts\n", num_parts);
     elt2 = timer();
 
     label_prop_weighted_interpart(*g, num_parts, parts, label_prop_iter, vert_balance_lower);
@@ -161,8 +149,8 @@ pulp_run(pulp_graph_t* g, pulp_part_control_t* ppc, int* parts, int num_parts)
   }
   // .........................................................................
   else if (do_label_prop &&
-            g->vertex_weights == NULL &&
-            g->edge_weights == NULL)
+           g->vertex_weights == NULL &&
+           g->edge_weights == NULL)
   {
     if (verbose) printf("\tDoing label prop stage with %d parts\n", num_parts);
     elt2 = timer();
@@ -173,14 +161,26 @@ pulp_run(pulp_graph_t* g, pulp_part_control_t* ppc, int* parts, int num_parts)
     if (verbose) printf("\t Done: %9.6lf seconds\n", elt2);
   }
   // .........................................................................
-  else if (do_label_prop &&
-          (g->vertex_weights != NULL ||
-           g->edge_weights != NULL))
+  else if ( do_label_prop &&
+           (g->vertex_weights != NULL || g->edge_weights != NULL))
   {
     if (verbose) printf("\tDoing (weighted) label prop stage with %d parts\n", num_parts);
     elt2 = timer();
 
     label_prop_weighted(*g, num_parts, parts, label_prop_iter, vert_balance_lower);
+
+    elt2 = timer() - elt2;
+    if (verbose) printf("\t Done: %9.6lf seconds\n", elt2);
+  }
+  // .........................................................................
+  else if (using_partition_capacities &&
+           g->vertex_weights != NULL &&
+           do_nonrandom_init)
+  {
+    if (verbose) printf("\tDoing weigthed and capacitated bfs init stage with %d parts\n", num_parts);
+    elt2 = timer();
+
+    init_nonrandom_constrained_capacity(*g, num_parts, parts, vert_balance);
 
     elt2 = timer() - elt2;
     if (verbose) printf("\t Done: %9.6lf seconds\n", elt2);

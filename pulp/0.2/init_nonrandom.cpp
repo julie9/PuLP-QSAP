@@ -335,8 +335,7 @@ init_nonrandom_constrained_capacity(pulp_graph_t& g, int num_parts, int* parts, 
   int  queue_size = num_parts;
   int  next_size  = 0;
 
-  double unit_capacity = (double)g.vertex_weights_sum
-                         / (double)g.partition_capacities_sum;
+  double unit_capacity_wgts = (double)g.vertex_weights_sum / (double)g.partition_capacities_sum;
 
   int random_assignments = 0; // Counter for random assignments
 
@@ -386,7 +385,7 @@ init_nonrandom_constrained_capacity(pulp_graph_t& g, int num_parts, int* parts, 
             // assign it to the same part as the start point.
             // Otherwise, assign it to a random part
             if (part_sizes[part]
-                < (int)(g.partition_capacities[part] * unit_capacity) * vertex_balance)
+                < (int)(g.partition_capacities[part] * unit_capacity_wgts) * vertex_balance)
               parts[out] = part;
             else
             {

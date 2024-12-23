@@ -137,6 +137,21 @@ pulp_run(pulp_graph_t* g, pulp_part_control_t* ppc, int* parts, int num_parts)
   // INITIALIZATION WITH LABEL PROPAGATION
   //---------------------------------------------------------------------------
   if (using_interpartition_weights &&
+      using_partition_capacities &&
+      do_label_prop &&
+     (g->vertex_weights != NULL || g->edge_weights != NULL) &&
+      g->interpartition_weights != NULL)
+  {
+    if (verbose) printf("\tDoing (weighted, with interpart.& label capacity) label prop stage with %d parts\n", num_parts);
+    elt2 = timer();
+
+    label_prop_weighted_interpart_capacity(*g, num_parts, parts, label_prop_iter, vert_balance_lower);
+
+    elt2 = timer() - elt2;
+    if (verbose) printf("\t Done: %9.6lf seconds\n", elt2);
+  }
+  // .........................................................................
+  else if (using_interpartition_weights &&
       do_label_prop &&
      (g->vertex_weights != NULL || g->edge_weights != NULL) &&
       g->interpartition_weights != NULL)

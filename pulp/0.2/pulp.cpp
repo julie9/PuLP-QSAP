@@ -130,16 +130,18 @@ pulp_run(pulp_graph_t* g, pulp_part_control_t* ppc, int* parts, int num_parts)
     #  ##   # #   #      #        #    #  #  #    # #
     #  # #  # #   #       ####    #   #    # #      #####
     #  #  # # #   #           #   #   ###### #  ### #
-    #  #   ## #   #      #    #   #   #    # #    # #
+    #  #   ## #   #      #    #   #   #     # #    # #
   #### #    # #   #       ####    #   #    #  ####  ######
   */
-  // .........................................................................
-  if ((using_interpartition_weights || using_partition_capacities) &&
-       do_label_prop &&
-      (g->vertex_weights != NULL || g->edge_weights != NULL) &&
-       g->interpartition_weights != NULL)
+  //---------------------------------------------------------------------------
+  // INITIALIZATION WITH LABEL PROPAGATION
+  //---------------------------------------------------------------------------
+  if (using_interpartition_weights &&
+      do_label_prop &&
+     (g->vertex_weights != NULL || g->edge_weights != NULL) &&
+      g->interpartition_weights != NULL)
   {
-    if (verbose) printf("\tDoing (weighted, with interpart.wghts / part.capacities) label prop stage with %d parts\n", num_parts);
+    if (verbose) printf("\tDoing (weighted, with interpart.wgts) label prop stage with %d parts\n", num_parts);
     elt2 = timer();
 
     label_prop_weighted_interpart(*g, num_parts, parts, label_prop_iter, vert_balance_lower);
@@ -172,7 +174,9 @@ pulp_run(pulp_graph_t* g, pulp_part_control_t* ppc, int* parts, int num_parts)
     elt2 = timer() - elt2;
     if (verbose) printf("\t Done: %9.6lf seconds\n", elt2);
   }
-  // .........................................................................
+  //---------------------------------------------------------------------------
+  // INITIALIZATION WITH BFS
+  //---------------------------------------------------------------------------
   else if (using_partition_capacities &&
            g->vertex_weights != NULL &&
            do_nonrandom_init)

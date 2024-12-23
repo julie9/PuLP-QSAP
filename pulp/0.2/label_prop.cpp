@@ -735,12 +735,11 @@ int*
 label_prop_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, int* parts, int label_prop_iter,
                                        double balance_vert_lower)
 {
-  //TODO(julie9): modify for capacity
-
-  bool has_ipwgts = (g.interpartition_weights != NULL);
-  if (!has_ipwgts)
+  bool has_ipwgts        = (g.interpartition_weights != NULL);
+  bool has_p_capacities  = (g.partition_capacities != NULL);
+  if (!has_p_capacities || !has_ipwgts)
   {
-    printf("Error: interpartition weights required for weighted interpart label prop\n");
+    printf("Error: partition capacities required for weighted interpart label prop\n");
     exit(0);
   }
 
@@ -761,8 +760,21 @@ label_prop_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, int* part
   int   queue_size    = num_verts;
   int   next_size     = 0;
 
-  double avg_size = (double)g.vertex_weights_sum / (double)num_parts;
-  double min_size = avg_size * balance_vert_lower;
+  double  unit_capacity_wgts = (double)g.vertex_weights_sum / (double)g.partition_capacities_sum;
+  double* min_sizes          = new double[num_parts];
+  for (int i = 0; i < num_parts; ++i)
+    min_sizes[i] = unit_capacity_wgts * g.partition_capacities[i] * balance_vert_lower;
+
+  // Compute the cumulative distribution of partition capacities
+  double* cumulative_distribution = nullptr;
+  if (has_p_capacities)
+  {
+    cumulative_distribution    = new double[num_parts];  // Initialize the cumulative distribution
+    cumulative_distribution[0] = (double)g.partition_capacities[0] / g.partition_capacities_sum;
+    for (int i = 1; i < num_parts; ++i)
+      cumulative_distribution[i] = cumulative_distribution[i - 1]
+                                 + (double)g.partition_capacities[i] / g.partition_capacities_sum;
+  }
 
   #pragma omp parallel
   {
@@ -772,9 +784,26 @@ label_prop_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, int* part
     xs1024star_t xs;
     xs1024star_seed((unsigned long)(seed + omp_get_thread_num()), &xs);
 
-    #pragma omp for
-    for (int i = 0; i < num_verts; ++i)
-      parts[i] = (int)((unsigned)xs1024star_next(&xs) % (unsigned)num_parts);
+    if (has_p_capacities)
+    {
+      #pragma omp for
+      for (int i = 0; i < num_verts; ++i)
+      {
+        double rand_val = (double)xs1024star_next(&xs) / (double)UINT64_MAX; // Random value between 0 and 1
+        for (int j = 0; j < num_parts; ++j)
+          if (rand_val <= cumulative_distribution[j])
+          {
+            parts[i] = j; // Assign the vertex to the partition
+            break;        // Break the loop after assigning the vertex to the partition
+          }
+      }
+    }
+    else // Randomly assign vertices to partitions, if partition weights are not provided
+    {
+      #pragma omp for
+      for (int i = 0; i < num_verts; ++i)
+        parts[i] = (int)((unsigned)xs1024star_next(&xs) % (unsigned)num_parts);
+    }
 
     // Compute the size of each partition
     long* part_sizes_thread = new long[num_parts];
@@ -861,9 +890,7 @@ label_prop_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, int* part
         for (int p = 0; p < num_parts; ++p)
         {
           if (part_counts[p] == max_count)
-          {
             part_counts[num_max++] = p;
-          }
           else if (part_counts[p] > max_count)
           {
             max_count = part_counts[p];
@@ -880,7 +907,7 @@ label_prop_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, int* part
         // Swap the vertex to the partition with the maximum count
         // -----------------------------------------------------
         if (max_part != part &&
-            (part_sizes[part] - v_weight > (int)min_size))
+            part_sizes[part] - v_weight > (int)min_sizes[part])
         {
           parts[v] = max_part; // Move vertex v to the partition with the maximum count
           ++num_changes;
@@ -908,7 +935,7 @@ label_prop_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, int* part
             }
           }
 
-        // Add the neighbors of vertex v to the queue
+          // Add the neighbors of vertex v to the queue
           for (unsigned j = 0; j < out_degree; ++j)
           {
             if (!in_queue_next[outs[j]])
@@ -968,6 +995,9 @@ label_prop_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, int* part
     delete [] part_counts;
   } // end parallel
 
+  if (has_p_capacities)
+    delete[] cumulative_distribution;
+
   delete [] queue;
   delete [] queue_next;
   delete [] in_queue;
@@ -975,5 +1005,4 @@ label_prop_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, int* part
 
   return parts;
 }
-
 

@@ -49,6 +49,8 @@
 #include <sys/time.h>
 #include <time.h>
 #include <omp.h>
+#include <limits>
+#include <cassert>
 
 #include "pulp.h"
 
@@ -92,10 +94,11 @@ pulp_run(pulp_graph_t* g, pulp_part_control_t* ppc, int* parts, int num_parts)
   bool   using_interpartition_weights = ppc->using_interpartition_weights;
   bool   using_partition_capacities   = ppc->using_partition_capacities;
 
-  int iter_mult1 = 1;
+  int iter_mult0 = 1;
+  int iter_mult1 = 0;
   int iter_mult2 = 0;
   int balance_outer_iter =  1;
-  int label_prop_iter    =  3 * iter_mult1;
+  int label_prop_iter    =  3 * iter_mult0;
   int vert_outer_iter    =  3 * iter_mult1;
   int vert_balance_iter  =  5 * iter_mult1;
   int vert_refine_iter   = 10 * iter_mult1;
@@ -109,7 +112,7 @@ pulp_run(pulp_graph_t* g, pulp_part_control_t* ppc, int* parts, int num_parts)
   elt = timer();
 
 	if (verbose)
-		{
+	{
 		printf("\nBeginning run_pulp()...\n");
 		printf("\tdo_lp_init: %s\n", do_label_prop ? "true" : "false");
 		printf("\tdo_bfs_init: %s\n", do_nonrandom_init ? "true" : "false");
@@ -122,7 +125,7 @@ pulp_run(pulp_graph_t* g, pulp_part_control_t* ppc, int* parts, int num_parts)
     printf("\tvert_balance: %lf\n", vert_balance);
     printf("\tedge_balance: %lf\n", edge_balance);
     printf("\tseed: %d\n", seed);
-		}
+	}
 
   /*
   ####
@@ -152,9 +155,9 @@ pulp_run(pulp_graph_t* g, pulp_part_control_t* ppc, int* parts, int num_parts)
   }
   // .........................................................................
   else if (using_interpartition_weights &&
-      do_label_prop &&
-     (g->vertex_weights != NULL || g->edge_weights != NULL) &&
-      g->interpartition_weights != NULL)
+           do_label_prop &&
+          (g->vertex_weights != NULL || g->edge_weights != NULL) &&
+           g->interpartition_weights != NULL)
   {
     if (verbose) printf("\tDoing (weighted, with interpart.wgts) label prop stage with %d parts\n", num_parts);
     elt2 = timer();
@@ -178,8 +181,8 @@ pulp_run(pulp_graph_t* g, pulp_part_control_t* ppc, int* parts, int num_parts)
     if (verbose) printf("\t Done: %9.6lf seconds\n", elt2);
   }
   // .........................................................................
-  else if ( do_label_prop &&
-           (g->vertex_weights != NULL || g->edge_weights != NULL))
+  else if (do_label_prop &&
+          (g->vertex_weights != NULL || g->edge_weights != NULL))
   {
     if (verbose) printf("\tDoing (weighted) label prop stage with %d parts\n", num_parts);
     elt2 = timer();

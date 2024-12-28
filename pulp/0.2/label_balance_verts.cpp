@@ -505,8 +505,8 @@ void label_balance_verts_weighted(
       #pragma omp single
       {
         num_swapped_1 = 0;
-  queue_size = num_verts;
-  next_size = 0;
+        queue_size = num_verts;
+        next_size = 0;
       }
 
       int num_iter = 0;
@@ -905,11 +905,13 @@ label_balance_verts_weighted_interpart(pulp_graph_t& g, int num_parts, int* part
       else
       {
         double capacity_adjustment = g.partition_capacities[p];
-        part_weights[p] = (vert_balance * avg_size / (double)part_sizes[p]) * capacity_adjustment - 1.0;
-        // This ensures that partitions with higher capacities are more attractive for adding vertices, reflecting their ability to handle more load.
-        // adjust part_weights based on vertex weights (containts the sum of vertex weights in each partition and the partition weights.)
+        part_weights[p] = (vert_balance * avg_size / (double)part_sizes[p])
+                          * capacity_adjustment - 1.0;
+        // This ensures that partitions with higher capacities are more
+        // attractive for adding vertices, reflecting their ability to handle
+        // more load. adjust part_weights based on vertex weights (containts the
+        // sum of vertex weights in each partition and the partition weights.)
       }
-
       if (part_weights[p] < 0.0)
         part_weights[p] = 0.0;
     }

@@ -1,4 +1,3 @@
-#include <cassert>
 using namespace std;
 
 /*

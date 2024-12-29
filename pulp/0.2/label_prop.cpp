@@ -761,10 +761,10 @@ label_prop_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, int* part
   int   queue_size    = num_verts;
   int   next_size     = 0;
 
-  double  unit_capacity_wgts = (double)g.vertex_weights_sum / (double)g.partition_capacities_sum;
+  double  avg_size_units = (double)g.vertex_weights_sum / (double)g.partition_capacities_sum;
   double* min_sizes          = new double[num_parts];
   for (int i = 0; i < num_parts; ++i)
-    min_sizes[i] = unit_capacity_wgts * g.partition_capacities[i] * balance_vert_lower;
+    min_sizes[i] = avg_size_units * g.partition_capacities[i] * balance_vert_lower;
 
   // Compute the cumulative distribution of partition capacities
   double* cumulative_distribution = nullptr;

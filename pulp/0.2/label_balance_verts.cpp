@@ -1299,33 +1299,30 @@ label_balance_verts_weighted_interpart(pulp_graph_t& g, int num_parts, int* part
  ###  ###  ###     ######  ##     ## ##        ###    #### ###       ###    ######## ##     ##    ##    ###    ########  ##     ## ######## ###
 */
 void
-label_balance_verts_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, int* parts, int vert_outer_iter, int vert_balance_iter, int vert_refine_iter, double vert_balance)
+label_balance_verts_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, int* parts,
+  int vert_outer_iter, int vert_balance_iter, int vert_refine_iter, double vert_balance)
 {
-  int    num_verts  = g.n;
-  long*  part_sizes = new long[num_parts];
-  double avg_size   = 0;
+  bool has_ipwgts        = (g.interpartition_weights != NULL);
+  bool has_p_capacities  = (g.partition_capacities != NULL);
+  if (!has_p_capacities || !has_ipwgts)
+  {
+    printf("Error: partition capacities required for weighted interpart label prop\n");
+    exit(0);
+  }
 
-  bool has_p_capacities = (g.partition_capacities != NULL);
-  bool has_ewgts        = (g.edge_weights != NULL);
-  bool has_vwgts        = (g.vertex_weights != NULL);
+  int  num_verts = g.n;
+  bool has_ewgts = (g.edge_weights != NULL);
+  bool has_vwgts = (g.vertex_weights != NULL);
   if (!has_vwgts) g.vertex_weights_sum = g.n;
 
+  long*  part_sizes = new long[num_parts];
   for (int i = 0; i < num_parts; ++i)
     part_sizes[i] = 0;
 
-  if (has_p_capacities)
-  {
-    double total_capacity = 0.0;
-    for (int i = 0; i < num_parts; ++i)
-        total_capacity += g.partition_capacities[i];
 
-    double avg_capacity = total_capacity / num_parts;
-    avg_size = (double)g.vertex_weights_sum / avg_capacity;
-  }
-  else
-    avg_size = (double)g.vertex_weights_sum / (double)num_parts;
-
-  // printf("avg_size: %lf\n", avg_size);
+  double avg_size       = (double)g.vertex_weights_sum / (double)num_parts;
+  double avg_size_units = (double)g.vertex_weights_sum / (double)g.partition_capacities_sum;
+  int    capacities     = g.partition_capacities;
 
   int    num_swapped_1 = 0;
   int    num_swapped_2 = 0;
@@ -1349,9 +1346,7 @@ label_balance_verts_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, 
 
     #pragma omp for schedule(static) nowait
     for (int i = 0; i < num_verts; ++i)
-      if (has_p_capacities)
-        part_sizes_thread[parts[i]] += g.vertex_weights[i] / g.partition_capacities[parts[i]];
-      else if (has_vwgts)
+      if (has_vwgts)
         part_sizes_thread[parts[i]] += g.vertex_weights[i];
       else
         ++part_sizes_thread[parts[i]];
@@ -1375,18 +1370,22 @@ label_balance_verts_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, 
     {
       if (part_sizes[p] == 0)
         part_weights[p] = numeric_limits<double>::max();
+        // Note(julie9): added this line to prevent division by zero
       else
       {
-        double capacity_adjustment = g.partition_capacities[p];
-        part_weights[p] = (vert_balance * avg_size / (double)part_sizes[p])
-                          * capacity_adjustment - 1.0;
-        // This ensures that partitions with higher capacities are more
-        // attractive for adding vertices, reflecting their ability to handle
-        // more load. adjust part_weights based on vertex weights (containts the
-        // sum of vertex weights in each partition and the partition weights.)
+        
+        //TODO(julie9): This is a place where the capacity has to be used.
+
+        part_weights[p] = (vert_balance * avg_size / (double)part_sizes[p]) - 1.0;
+        // Notes(julie9): This ensures that partitions with higher capacities
+        // are more attractive for adding vertices, reflecting their ability to
+        // handle more load. adjust part_weights based on vertex weights
+        // (containts the sum of vertex weights in each partition and the
+        // partition weights.)
       }
       if (part_weights[p] < 0.0)
         part_weights[p] = 0.0;
+        // Notes(julie9): This ensures no negative weights.
     }
 
     // ======================================================
@@ -1429,9 +1428,6 @@ label_balance_verts_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, 
           int part     = parts[v];
           int v_weight = 1;
           if (has_vwgts) v_weight = g.vertex_weights[v];
-
-          int p_capacity = 1;
-          if (has_p_capacities) p_capacity = g.partition_capacities[part];
 
           for (int p = 0; p < num_parts; ++p)
             part_counts[p] = 0.0;
@@ -1488,21 +1484,17 @@ label_balance_verts_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, 
           // Swap vertex v to the partition with the maximum count
           // -----------------------------------------------------
           if (max_part != part &&                 // check if not already in the largest partition
-              (part_sizes[part] - (v_weight / p_capacity)) > 0)  // check if the partition is not empty
+              (part_sizes[part] - v_weight) > 0)  // and if the partition is not empty
           {
             parts[v] = max_part; // reassign vertex v to the largest partition
             ++num_swapped_1;     // increment the number of vertices swapped
 
-            // Partition weight of the partition with the maximum count
-            int p_max_capacity = 1;
-            if (has_p_capacities) p_max_capacity = g.partition_capacities[max_part];
-
             #pragma omp atomic
-            part_sizes[max_part] += (v_weight / p_max_capacity);
-
+            part_sizes[max_part] += v_weight;
             #pragma omp atomic
-            part_sizes[part] -= (v_weight / p_capacity);
+            part_sizes[part]     -= v_weight;
 
+            //TODO(julie9): This is a place where the capacity has to be used.
             part_weights[part]     = vert_balance * avg_size / (double)part_sizes[part] - 1.0;
             part_weights[max_part] = vert_balance * avg_size / (double)part_sizes[max_part] - 1.0;
 
@@ -1618,9 +1610,6 @@ label_balance_verts_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, 
           int v_weight = 1;
           if (has_vwgts) v_weight = g.vertex_weights[v];
 
-          int p_capacity = 1;
-          if (has_p_capacities) p_capacity = g.partition_capacities[part];
-
           for (int p = 0; p < num_parts; ++p)
             part_counts[p] = 0;
 
@@ -1659,13 +1648,10 @@ label_balance_verts_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, 
           // Swap vertex v to the partition with the maximum count
           // -----------------------------------------------------
           if (max_part != part &&
-					    part_sizes[part] - (v_weight / p_capacity) > 0)
+					    part_sizes[part] - v_weight > 0)
           {
-            int p_max_capacity = 1;
-            if (has_p_capacities) p_max_capacity = g.partition_capacities[max_part];
-
-            double new_max_imb = (double)(part_sizes[max_part] + (v_weight / p_max_capacity))
-                                        / avg_size;
+            //TODO(julie9): This is a place where the capacity has to be used.
+            double new_max_imb = (double)(part_sizes[max_part] + v_weight) / avg_size;
 
             if (new_max_imb < vert_balance)
             {
@@ -1673,10 +1659,9 @@ label_balance_verts_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, 
               parts[v] = max_part;
 
               #pragma omp atomic
-              part_sizes[max_part] += (v_weight / p_max_capacity);
-
+              part_sizes[max_part] += v_weight;
               #pragma omp atomic
-              part_sizes[part]     -= (v_weight / p_capacity);
+              part_sizes[part]     -= v_weight;
 
               if (!in_queue_next[v])
               {

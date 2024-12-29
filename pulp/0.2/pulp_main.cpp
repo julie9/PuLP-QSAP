@@ -179,7 +179,7 @@ int main(int argc, char** argv)
         strcpy(interpart_weights_file, optarg);
         using_interpartition_weights = true;
         break;
-      case 'p':                               // -p flag : partition weights file (computational power)
+      case 'p':                               // -p flag : partition capacity (ex: computational power)
         strcpy(partition_weights_file, optarg);
         using_partition_capacities = true;
         break;

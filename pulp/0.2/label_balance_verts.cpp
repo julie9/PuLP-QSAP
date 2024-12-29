@@ -824,7 +824,8 @@ void label_balance_verts_weighted(
 ##  ##  ##     ##     ##     ## ##     ## ##            ## ##   ##       ##    ##     ##
  ###  ###     ####    ########  ##     ## ########       ###    ######## ##     ##    ##    */
 void
-label_balance_verts_weighted_interpart(pulp_graph_t& g, int num_parts, int* parts, int vert_outer_iter, int vert_balance_iter, int vert_refine_iter, double vert_balance)
+label_balance_verts_weighted_interpart(pulp_graph_t& g, int num_parts, int* parts,
+  int vert_outer_iter, int vert_balance_iter, int vert_refine_iter, double vert_balance)
 {
   bool has_ipwgts = (g.interpartition_weights != NULL);
   if (!has_ipwgts)

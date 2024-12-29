@@ -95,7 +95,7 @@ pulp_run(pulp_graph_t* g, pulp_part_control_t* ppc, int* parts, int num_parts)
   bool   using_partition_capacities   = ppc->using_partition_capacities;
 
   int iter_mult0 = 1;
-  int iter_mult1 = 0;
+  int iter_mult1 = 1;
   int iter_mult2 = 0;
   int balance_outer_iter =  1;
   int label_prop_iter    =  3 * iter_mult0;
@@ -145,7 +145,7 @@ pulp_run(pulp_graph_t* g, pulp_part_control_t* ppc, int* parts, int num_parts)
      (g->vertex_weights != NULL || g->edge_weights != NULL) &&
       g->interpartition_weights != NULL)
   {
-    if (verbose) printf("\tDoing (weighted, with interpart.& label capacity) label prop stage with %d parts\n", num_parts);
+    if (verbose) printf("\tDoing (weighted, with interpart & label capacity) label prop stage with %d parts\n", num_parts);
     elt2 = timer();
 
     label_prop_weighted_interpart_capacity(*g, num_parts, parts, label_prop_iter, vert_balance_lower);
@@ -159,7 +159,7 @@ pulp_run(pulp_graph_t* g, pulp_part_control_t* ppc, int* parts, int num_parts)
           (g->vertex_weights != NULL || g->edge_weights != NULL) &&
            g->interpartition_weights != NULL)
   {
-    if (verbose) printf("\tDoing (weighted, with interpart.wgts) label prop stage with %d parts\n", num_parts);
+    if (verbose) printf("\tDoing (weighted, with interpart wgts) label prop stage with %d parts\n", num_parts);
     elt2 = timer();
 
     label_prop_weighted_interpart(*g, num_parts, parts, label_prop_iter, vert_balance_lower);
@@ -255,13 +255,12 @@ pulp_run(pulp_graph_t* g, pulp_part_control_t* ppc, int* parts, int num_parts)
              (g->vertex_weights != NULL ||
              g->edge_weights != NULL))
     {
-      if (verbose) printf("\t\tDoing (weighted, with interpart. and part. weights) vert balance and refinement stage\n");
+      if (verbose) printf("\t\tDoing (weighted, capacitated, with interpart weigths) vert balance and refinement stage\n");
       elt3 = timer();
 
-      // Note(julie9): method if only interpart weights
-      label_balance_verts_weighted_interpart(*g, num_parts, parts,
-                                            vert_outer_iter, vert_balance_iter, vert_refine_iter,
-                                            vert_balance);
+      label_balance_verts_weighted_interpart_capacity(*g, num_parts, parts,
+                                                      vert_outer_iter, vert_balance_iter,
+                                                      vert_refine_iter, vert_balance);
 
       elt3 = timer() - elt3;
       if (verbose) printf("\t\t Done: %9.6lf seconds\n", elt3);
@@ -271,27 +270,12 @@ pulp_run(pulp_graph_t* g, pulp_part_control_t* ppc, int* parts, int num_parts)
              (g->vertex_weights != NULL ||
              g->edge_weights != NULL))
     {
-      if (verbose) printf("\t\tDoing (weighted, with interpartition weights) vert balance and refinement stage\n");
+      if (verbose) printf("\t\tDoing (weighted with interpart weights) vert balance and refinement stage\n");
       elt3 = timer();
 
       label_balance_verts_weighted_interpart(*g, num_parts, parts,
-                                            vert_outer_iter, vert_balance_iter, vert_refine_iter,
-                                            vert_balance);
-
-      elt3 = timer() - elt3;
-      if (verbose) printf("\t\t Done: %9.6lf seconds\n", elt3);
-    }
-    // .........................................................................
-    else if (do_vert_balance &&
-             (g->vertex_weights != NULL ||
-             g->edge_weights != NULL))
-    {
-      if (verbose) printf("\t\tDoing (weighted) vert balance and refinement stage\n");
-      elt3 = timer();
-
-      label_balance_verts_weighted(*g, num_parts, parts,
-                                  vert_outer_iter, vert_balance_iter, vert_refine_iter,
-                                  vert_balance);
+                                             vert_outer_iter, vert_balance_iter, vert_refine_iter,
+                                             vert_balance);
 
       elt3 = timer() - elt3;
       if (verbose) printf("\t\t Done: %9.6lf seconds\n", elt3);

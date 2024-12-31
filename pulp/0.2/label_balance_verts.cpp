@@ -54,6 +54,7 @@ using namespace std;
  ########:: ##:::: ##: ########::::::. ###:::: ########: ##:::. ##:::: ##::::
 ........:::..:::::..::........::::::::...:::::........::..:::::..:::::..:::::
 */
+
 void label_balance_verts(pulp_graph_t& g, int num_parts, int* parts,
   int vert_outer_iter, int vert_balance_iter, int vert_refine_iter,
   double vert_balance)
@@ -425,6 +426,7 @@ void label_balance_verts(pulp_graph_t& g, int num_parts, int* parts,
 . ###. ###::::: ########:: ##:::: ##: ########::::::. ###:::: ########: ##:::. ##:::: ##::::. ######::
 :...::...::::::........:::..:::::..::........::::::::...:::::........::..:::::..:::::..::::::......:::
 */
+
 void label_balance_verts_weighted(
   pulp_graph_t& g, int num_parts, int* parts,
   int vert_outer_iter, int vert_balance_iter, int vert_refine_iter,
@@ -807,8 +809,6 @@ void label_balance_verts_weighted(
   delete [] in_queue;
   delete [] in_queue_next;
 }
-
-
 
 
 
@@ -1288,6 +1288,8 @@ label_balance_verts_weighted_interpart(pulp_graph_t& g, int num_parts, int* part
 
 
 
+
+
 /*
 ##      ##         ######     ###    ########         ####        ##     ## ######## ########  ########        ########     ###    ##
 ##  ##  ##        ##    ##   ## ##   ##     ##         ##         ##     ## ##       ##     ##    ##           ##     ##   ## ##   ##
@@ -1297,10 +1299,13 @@ label_balance_verts_weighted_interpart(pulp_graph_t& g, int num_parts, int* part
 ##  ##  ## ###    ##    ## ##     ## ##        ###     ##  ###      ## ##   ##       ##    ##     ##    ###    ##     ## ##     ## ##       ###
  ###  ###  ###     ######  ##     ## ##        ###    #### ###       ###    ######## ##     ##    ##    ###    ########  ##     ## ######## ###
 */
+
 void
 label_balance_verts_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, int* parts,
   int vert_outer_iter, int vert_balance_iter, int vert_refine_iter, double vert_balance)
 {
+  printf("running label_balance_verts_weighted_interpart_capacity\n");
+
   bool has_ipwgts        = (g.interpartition_weights != NULL);
   bool has_p_capacities  = (g.partition_capacities != NULL);
   if (!has_p_capacities || !has_ipwgts)
@@ -1319,9 +1324,11 @@ label_balance_verts_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, 
     part_sizes[i] = 0;
 
 
-  double avg_size       = (double)g.vertex_weights_sum / (double)num_parts;
-  double avg_size_units = (double)g.vertex_weights_sum / (double)g.partition_capacities_sum;
-  int    capacities     = g.partition_capacities;
+  // double  avg_size      = (double)g.vertex_weights_sum / (double)num_parts;
+  double  unit_avg_size = (double)g.vertex_weights_sum / (double)g.partition_capacities_sum;
+  double* avg_sizes     = new double[num_parts];
+  for (int i = 0; i < num_parts; ++i)
+    avg_sizes[i] = unit_avg_size * g.partition_capacities[i];
 
   int    num_swapped_1 = 0;
   int    num_swapped_2 = 0;
@@ -1375,7 +1382,7 @@ label_balance_verts_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, 
 
         //TODO(julie9): This is a place where the capacity has to be used.
 
-        part_weights[p] = (vert_balance * avg_size / (double)part_sizes[p]) - 1.0;
+        part_weights[p] = (vert_balance * avg_sizes[p] / (double)part_sizes[p]) - 1.0;
         // Notes(julie9): This ensures that partitions with higher capacities
         // are more attractive for adding vertices, reflecting their ability to
         // handle more load. adjust part_weights based on vertex weights
@@ -1494,8 +1501,8 @@ label_balance_verts_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, 
             part_sizes[part]     -= v_weight;
 
             //TODO(julie9): This is a place where the capacity has to be used.
-            part_weights[part]     = vert_balance * avg_size / (double)part_sizes[part] - 1.0;
-            part_weights[max_part] = vert_balance * avg_size / (double)part_sizes[max_part] - 1.0;
+            part_weights[part]     = (vert_balance * avg_sizes[part] / (double)part_sizes[part]) - 1.0;
+            part_weights[max_part] = (vert_balance * avg_sizes[part] / (double)part_sizes[max_part]) - 1.0;
 
             if (part_weights[part] < 0.0)
               part_weights[part] = 0.0;
@@ -1650,7 +1657,7 @@ label_balance_verts_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, 
 					    part_sizes[part] - v_weight > 0)
           {
             //TODO(julie9): This is a place where the capacity has to be used.
-            double new_max_imb = (double)(part_sizes[max_part] + v_weight) / avg_size;
+            double new_max_imb = (double)(part_sizes[max_part] + v_weight) / avg_sizes[max_part];
 
             if (new_max_imb < vert_balance)
             {
@@ -1732,8 +1739,8 @@ label_balance_verts_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, 
           max_v = 0.0;
           for (int p = 0; p < num_parts; ++p)
           {
-            if ((double)part_sizes[p] / avg_size > max_v)
-              max_v = (double)part_sizes[p] / avg_size;
+            if ((double)part_sizes[p] / avg_sizes[p] > max_v)
+              max_v = (double)part_sizes[p] / avg_sizes[p];
           }
           #if OUTPUT_STEP
             evaluate_quality(g, num_parts, parts);
@@ -1766,7 +1773,8 @@ label_balance_verts_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, 
 
   } // end omp parallel
 
-
+  delete [] avg_sizes;
+  
   delete [] part_sizes;
   delete [] queue;
   delete [] queue_next;

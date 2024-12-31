@@ -323,9 +323,16 @@ int main(int argc, char** argv)
   }
 
   delete [] interpartition_weights;
+  delete [] partition_capacities;
+
   delete [] parts;
   delete [] out_array;
   delete [] out_degree_list;
+  delete [] vertex_weights;
+  delete [] edge_weights;
+
+  free(graph_name);
+  free(num_parts_str);
 
   return 0;
 }

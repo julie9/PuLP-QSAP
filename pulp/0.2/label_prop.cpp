@@ -371,7 +371,7 @@ int* label_prop_weighted(pulp_graph_t& g, int num_parts, int* parts,
         }
 
         if (num_max > 1)
-          max_part = part_counts[(int)xs1024star_next(&xs) % num_max];
+          max_part = part_counts[(int)rand() % num_max];
 
         if (max_part != part &&
             (part_sizes[part] - v_weight > (int)min_size))
@@ -621,7 +621,7 @@ label_prop_weighted_interpart(pulp_graph_t& g, int num_parts, int* parts, int la
         }
         // If there are multiple partitions with the maximum count, randomly select one
         if (num_max > 1)
-          max_part = part_counts[(int)xs1024star_next(&xs) % num_max];
+          max_part = part_counts[(int)rand() % num_max];
 
         // -----------------------------------------------------
         // Swap the vertex to the partition with the maximum count
@@ -817,7 +817,7 @@ label_prop_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, int* part
       part_sizes[i] += part_sizes_thread[i];
 
     delete [] part_sizes_thread;
-    
+
 
     #pragma omp for schedule(static) nowait
     for (int i = 0; i < num_verts; ++i)
@@ -900,11 +900,7 @@ label_prop_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, int* part
         }
         // If there are multiple partitions with the maximum count, randomly select one
         if (num_max > 1)
-        {
-          // printf("Error: multiple partitions with the maximum count, num_max = %d\n", num_max);
-          // max_part = max_parts[(int)xs1024star_next(&xs) % num_max];
           max_part = max_parts[(int)rand() % num_max];
-        }
 
         // -----------------------------------------------------
         // Swap the vertex to the partition with the maximum count

@@ -54,6 +54,7 @@ using namespace std;
  ########:: ##:::: ##: ########:::: ########: ########::. ######::: ########:
 ........:::..:::::..::........:::::........::........::::......::::........::
 */
+
 void label_balance_edges(pulp_graph_t& g, int num_parts, int* parts,
   int edge_outer_iter, int edge_balance_iter, int edge_refine_iter,
   double vert_balance, double edge_balance)
@@ -506,6 +507,7 @@ void label_balance_edges(pulp_graph_t& g, int num_parts, int* parts,
  ########:: ##:::: ##: ########:::: ########: ########::. ######::: ########:
 ........:::..:::::..::........:::::........::........::::......::::........::
 */
+
 void label_balance_edges_weighted(
   pulp_graph_t& g, int num_parts, int* parts,
   int edge_outer_iter, int edge_balance_iter, int edge_refine_iter,

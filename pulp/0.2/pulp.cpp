@@ -96,7 +96,7 @@ pulp_run(pulp_graph_t* g, pulp_part_control_t* ppc, int* parts, int num_parts)
 
   int iter_mult0 = 1;
   int iter_mult1 = 1;
-  int iter_mult2 = 0;
+  int iter_mult2 = 1;
   int balance_outer_iter =  1;
   int label_prop_iter    =  3 * iter_mult0;
   int vert_outer_iter    =  3 * iter_mult1;
@@ -264,7 +264,8 @@ pulp_run(pulp_graph_t* g, pulp_part_control_t* ppc, int* parts, int num_parts)
 
       elt3 = timer() - elt3;
       if (verbose) printf("\t\t Done: %9.6lf seconds\n", elt3);
-    }    // .........................................................................
+    }
+    // .........................................................................
     else if (using_interpartition_weights &&
              do_vert_balance &&
              (g->vertex_weights != NULL ||

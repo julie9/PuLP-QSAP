@@ -330,8 +330,8 @@ pulp_run(pulp_graph_t* g, pulp_part_control_t* ppc, int* parts, int num_parts)
       elt3 = timer();
 
       label_balance_edges_maxcut(*g, num_parts, parts,
-                                  edge_outer_iter, edge_balance_iter, edge_refine_iter,
-                                  vert_balance, edge_balance);
+                                 edge_outer_iter, edge_balance_iter, edge_refine_iter,
+                                 vert_balance, edge_balance);
 
       elt3 = timer() - elt3;
       if (verbose) printf("\t\t Done: %9.6lfs\n", elt3);
@@ -353,13 +353,31 @@ pulp_run(pulp_graph_t* g, pulp_part_control_t* ppc, int* parts, int num_parts)
       if (verbose) printf("\t\t Done: %9.6lf seconds\n", elt3);
     }
     // .........................................................................
+    else if (using_partition_capacities &&
+             using_interpartition_weights &&
+             do_edge_balance &&
+             do_maxcut_balance &&
+             (g->vertex_weights != NULL ||
+              g->edge_weights != NULL))
+    {
+      if (verbose) printf("\t\tDoing (weighted, capacitated, with interpart weights) maxcut balance and refinement stage\n");
+      elt3 = timer();
+
+      label_balance_edges_maxcut_weighted_interpart_capacitated(*g, num_parts, parts,
+                                                                edge_outer_iter, edge_balance_iter, edge_refine_iter,
+                                                                vert_balance, edge_balance);
+
+      elt3 = timer() - elt3;
+      if (verbose) printf("\t\t Done: %9.6lfs\n", elt3);
+    }
+    // .........................................................................
     else if (using_interpartition_weights &&
              do_edge_balance &&
              do_maxcut_balance &&
              (g->vertex_weights != NULL ||
               g->edge_weights != NULL))
     {
-      if (verbose) printf("\t\tDoing (weighted, with interpartition weights) maxcut balance and refinement stage\n");
+      if (verbose) printf("\t\tDoing (weighted, with interp weights) maxcut balance and refinement stage\n");
       elt3 = timer();
 
       label_balance_edges_maxcut_weighted_interpart(*g, num_parts, parts,
@@ -371,9 +389,9 @@ pulp_run(pulp_graph_t* g, pulp_part_control_t* ppc, int* parts, int num_parts)
     }
     // .........................................................................
     else if (do_edge_balance &&
-            do_maxcut_balance &&
+             do_maxcut_balance &&
              (g->vertex_weights != NULL ||
-             g->edge_weights != NULL))
+              g->edge_weights != NULL))
     {
       if (verbose) printf("\t\tDoing (weighted) maxcut balance and refinement stage\n");
       elt3 = timer();
@@ -389,10 +407,8 @@ pulp_run(pulp_graph_t* g, pulp_part_control_t* ppc, int* parts, int num_parts)
     elt2 = timer() - elt2;
     if (verbose) printf("\tFinished outer loop iter %d: %9.6lf seconds\n", (boi+1), elt2);
   }
-
   elt = timer() - elt;
   if (verbose) printf("Partitioning finished: %9.6lf seconds\n", elt);
-
   return 0;
 }
 

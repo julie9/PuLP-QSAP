@@ -1323,8 +1323,6 @@ label_balance_verts_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, 
   for (int i = 0; i < num_parts; ++i)
     part_sizes[i] = 0;
 
-
-  // double  avg_size      = (double)g.vertex_weights_sum / (double)num_parts;
   double  unit_avg_size = (double)g.vertex_weights_sum / (double)g.partition_capacities_sum;
   double* avg_sizes     = new double[num_parts];
   for (int i = 0; i < num_parts; ++i)
@@ -1379,9 +1377,6 @@ label_balance_verts_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, 
         // Note(julie9): added this line to prevent division by zero
       else
       {
-
-        //TODO(julie9): This is a place where the capacity has to be used.
-
         part_weights[p] = (vert_balance * avg_sizes[p] / (double)part_sizes[p]) - 1.0;
         // Notes(julie9): This ensures that partitions with higher capacities
         // are more attractive for adding vertices, reflecting their ability to
@@ -1774,7 +1769,7 @@ label_balance_verts_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, 
   } // end omp parallel
 
   delete [] avg_sizes;
-  
+
   delete [] part_sizes;
   delete [] queue;
   delete [] queue_next;

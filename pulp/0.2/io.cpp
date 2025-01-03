@@ -106,7 +106,7 @@ read_adj(char* filename, int& n, long& m,
     // printf("Processed vertex %d, count: %ld\n", cur_vert, count);
   }
   out_degree_list[cur_vert] = count;
-  printf("cur_vert: %d, n: %d, count: %ld, m: %ld\n", cur_vert, n, count, m);
+  // printf("cur_vert: %d, n: %d, count: %ld, m: %ld\n", cur_vert, n, count, m);
   assert(cur_vert == n);
   assert(count == m);
 
@@ -143,7 +143,7 @@ read_graph(char* filename, int& n, long& m,
   while (getline(infile, line))
     if (line[0] != '%')  break;
 
-  printf("%s\n", line.c_str());
+  // printf("%s\n", line.c_str());
 
   sscanf(line.c_str(), "%d %li %d", &n, &m, &format);
   m *= 2;

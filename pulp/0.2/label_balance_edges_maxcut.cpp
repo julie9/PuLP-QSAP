@@ -1290,9 +1290,9 @@ void label_balance_edges_maxcut_weighted_interpart(
       // Update the edge sizes
       part_edge_sizes_thread[part] += out_degree;
 
-      int* outs    = out_vertices(g, i);
-      int* weights = out_weights(g, i);
-      int* label_weights = out_interpart_weights(g, part, num_parts);  // Notes(julie): added
+      int* outs                   = out_vertices(g, i);
+      int* weights                = out_weights(g, i);
+      int* partition_comm_weights = out_interpart_weights(g, part, num_parts);  // Notes(julie): added
 
       for (unsigned j = 0; j < out_degree; ++j)
       {
@@ -1302,8 +1302,8 @@ void label_balance_edges_maxcut_weighted_interpart(
         {
           if (has_ewgts /* && has_label_weight*/) // always have label weight
           {
-            part_cut_sizes_thread[part] += weights[j] * label_weights[out_part];
-            cut_size_thread             += weights[j] * label_weights[out_part];
+            part_cut_sizes_thread[part] += weights[j] * partition_comm_weights[out_part];
+            cut_size_thread             += weights[j] * partition_comm_weights[out_part];
           }
           else
           {
@@ -1907,14 +1907,19 @@ void label_balance_edges_maxcut_weighted_interpart_capacitated(
   for (int i = 0; i < num_parts; ++i)
     part_cut_sizes[i] = 0;
 
-  // double avg_size          = (double)g.vertex_weights_sum / (double)num_parts;
-  double  unit_avg_size = (double)g.vertex_weights_sum / (double)g.partition_capacities_sum;
-  double* avg_sizes     = new double[num_parts];
+  // Note(julie9): Part size and Edge cut count set according to the partition capacities
+  double  unit_avg_size      = (double)g.vertex_weights_sum / (double)g.partition_capacities_sum;
+  double  unit_avg_edge_size = (double)num_edges / (double)g.partition_capacities_sum;
+  double  unit_avg_cut_size  = (double)cut_size / (double)g.partition_capacities_sum;
+  double* avg_sizes          = new double[num_parts];
+  double* avg_edge_sizes     = new double[num_parts];
+  double* avg_cut_sizes      = new double[num_parts];
   for (int i = 0; i < num_parts; ++i)
     avg_sizes[i] = unit_avg_size * g.partition_capacities[i];
-
-  // TODO(julie9): change according to interconnexion weights
-  double avg_edge_size     = num_edges / num_parts;
+  for (int i = 0; i < num_parts; ++i)
+    avg_edge_sizes[i] = unit_avg_edge_size * g.partition_capacities[i];
+  for (int i = 0; i < num_parts; ++i)
+    avg_cut_sizes[i] = unit_avg_cut_size * g.partition_capacities[i];
 
   int    num_swapped_1     = 0;
   int    num_swapped_2     = 0;
@@ -1961,9 +1966,9 @@ void label_balance_edges_maxcut_weighted_interpart_capacitated(
       // Update the edge sizes
       part_edge_sizes_thread[part] += out_degree;
 
-      int* outs    = out_vertices(g, i);
-      int* weights = out_weights(g, i);
-      int* label_weights = out_interpart_weights(g, part, num_parts);  // Notes(julie): added
+      int* outs          = out_vertices(g, i);
+      int* weights       = out_weights(g, i);
+      int* partition_comm_weights = out_interpart_weights(g, part, num_parts);  // Notes(julie): added
 
       for (unsigned j = 0; j < out_degree; ++j)
       {
@@ -1971,10 +1976,10 @@ void label_balance_edges_maxcut_weighted_interpart_capacitated(
         int out_part = parts[out];
         if (out_part != part)
         {
-          if (has_ewgts /* && has_label_weight*/) // always have label weight
+          if (has_ewgts)
           {
-            part_cut_sizes_thread[part] += weights[j] * label_weights[out_part];
-            cut_size_thread             += weights[j] * label_weights[out_part];
+            part_cut_sizes_thread[part] += weights[j] * partition_comm_weights[out_part];
+            cut_size_thread             += weights[j] * partition_comm_weights[out_part];
           }
           else
           {
@@ -2001,8 +2006,9 @@ void label_balance_edges_maxcut_weighted_interpart_capacitated(
     delete [] part_edge_sizes_thread;
     delete [] part_cut_sizes_thread;
 
-    // TODO(julie9): change according to interconnexion weights
-    double  avg_cut_size      = (double)cut_size / (double)num_parts;
+    unit_avg_cut_size = (double)cut_size / (double)g.partition_capacities_sum;
+    for (int i = 0; i < num_parts; ++i)
+      avg_cut_sizes[i] = unit_avg_cut_size * g.partition_capacities[i];
 
     // ========================================================================
     // OUTER LOOP ITERATION
@@ -2048,11 +2054,11 @@ void label_balance_edges_maxcut_weighted_interpart_capacitated(
         max_c = 0.0;
         for (int p = 0; p < num_parts; ++p)
         {
-          if ((double)part_edge_sizes[p] / avg_edge_size > max_e)
-            max_e = (double)part_edge_sizes[p] / avg_edge_size;
+          if ((double)part_edge_sizes[p] / avg_edge_sizes[p] > max_e)
+            max_e = (double)part_edge_sizes[p] / avg_edge_sizes[p];
 
-          if ((double)part_cut_sizes[p] / avg_cut_size > max_c)
-            max_c = (double)part_cut_sizes[p] / avg_cut_size;
+          if ((double)part_cut_sizes[p] / avg_cut_sizes[p] > max_c)
+            max_c = (double)part_cut_sizes[p] / avg_cut_sizes[p];
         }
 
         if (max_e < edge_balance)
@@ -2074,8 +2080,8 @@ void label_balance_edges_maxcut_weighted_interpart_capacitated(
         for (int p = 0; p < num_parts; ++p)
         {
           part_weights[p]      = vert_balance * avg_sizes[p] / (double)part_sizes[p] - 1.0;
-          part_edge_weights[p] = max_e * avg_edge_size / (double)part_edge_sizes[p] - 1.0;
-          part_cut_weights[p]  = max_c * avg_cut_size / (double)part_cut_sizes[p] - 1.0;
+          part_edge_weights[p] = max_e * avg_edge_sizes[p] / (double)part_edge_sizes[p] - 1.0;
+          part_cut_weights[p]  = max_c * avg_cut_sizes[p] / (double)part_cut_sizes[p] - 1.0;
           if (part_weights[p] < 0.0)
             part_weights[p] = 0.0;
           if (part_edge_weights[p] < 0.0)
@@ -2145,11 +2151,14 @@ void label_balance_edges_maxcut_weighted_interpart_capacitated(
           {
             parts[v] = max_part;
             ++num_swapped_1;
+
             int diff_part     = 2 * part_count - sum_weights;
             int diff_max_part = sum_weights - 2 * max_count;
             int diff_cut      = diff_part + diff_max_part;
+
             #pragma omp atomic
             cut_size += diff_cut;
+
             #pragma omp atomic
             part_cut_sizes[part]     += diff_part;
             #pragma omp atomic
@@ -2199,14 +2208,17 @@ void label_balance_edges_maxcut_weighted_interpart_capacitated(
               }
             }
 
-            avg_cut_size            = cut_size / num_parts;
-            part_weights[part]      = vert_balance * avg_sizes[p] / (double)part_sizes[part] - 1.0;
-            part_edge_weights[part] = max_e * avg_edge_size / (double)part_edge_sizes[part] - 1.0;
-            part_cut_weights[part]  = max_c * avg_cut_size / (double)part_cut_sizes[part] - 1.0;
+            unit_avg_cut_size = (double)cut_size / (double)g.partition_capacities_sum;
+            for (int i = 0; i < num_parts; ++i)
+              avg_cut_sizes[i] = unit_avg_cut_size * g.partition_capacities[i];
 
-            part_weights[max_part]      = vert_balance * avg_sizes[p] / (double)part_sizes[max_part]  - 1.0;
-            part_edge_weights[max_part] = max_e * avg_edge_size / (double)part_edge_sizes[max_part] - 1.0;
-            part_cut_weights[max_part]  = max_c * avg_cut_size / (double)part_cut_sizes[max_part] - 1.0;
+            part_weights[part]      = vert_balance * avg_sizes[part] / (double)part_sizes[part] - 1.0;
+            part_edge_weights[part] = max_e * avg_edge_sizes[part] / (double)part_edge_sizes[part] - 1.0;
+            part_cut_weights[part]  = max_c * avg_cut_sizes[part] / (double)part_cut_sizes[part] - 1.0;
+
+            part_weights[max_part]      = vert_balance * avg_sizes[part] / (double)part_sizes[max_part]  - 1.0;
+            part_edge_weights[max_part] = max_e * avg_edge_sizes[part] / (double)part_edge_sizes[max_part] - 1.0;
+            part_cut_weights[max_part]  = max_c * avg_cut_sizes[part] / (double)part_cut_sizes[max_part] - 1.0;
 
             if (part_weights[part] < 0.0)
               part_weights[part] = 0.0;
@@ -2254,21 +2266,21 @@ void label_balance_edges_maxcut_weighted_interpart_capacitated(
           max_c = 0.0;
           for (int p = 0; p < num_parts; ++p)
           {
-            if ((double)part_edge_sizes[p] / avg_edge_size > max_e)
-              max_e = (double)part_edge_sizes[p] / avg_edge_size;
-            if ((double)part_cut_sizes[p] / avg_cut_size > max_c)
-              max_c = (double)part_cut_sizes[p] / avg_cut_size;
+            if ((double)part_edge_sizes[p] / avg_edge_sizes[p] > max_e)
+              max_e = (double)part_edge_sizes[p] / avg_edge_sizes[p];
+            if ((double)part_cut_sizes[p] / avg_cut_sizes[p] > max_c)
+              max_c = (double)part_cut_sizes[p] / avg_cut_sizes[p];
           }
           if (max_e < edge_balance)
           {
-            max_e = edge_balance;
-            weight_exponent_e = 1.0;
+            max_e              = edge_balance;
+            weight_exponent_e  = 1.0;
             weight_exponent_c *= max_c;
           }
           else
           {
             weight_exponent_e *= max_e / edge_balance;
-            weight_exponent_c = 1.0;
+            weight_exponent_c  = 1.0;
           }
 
           num_swapped_1 = 0;
@@ -2308,8 +2320,8 @@ void label_balance_edges_maxcut_weighted_interpart_capacitated(
         for (int p = 0; p < num_parts; ++p)
         {
           part_weights[p]      = vert_balance * avg_sizes[p] / (double)part_sizes[p] - 1.0;
-          part_edge_weights[p] = max_e * avg_edge_size / (double)part_edge_sizes[p] - 1.0;
-          part_cut_weights[p]  = max_c * avg_cut_size / (double)part_cut_sizes[p] - 1.0;
+          part_edge_weights[p] = max_e * avg_edge_sizes[p] / (double)part_edge_sizes[p] - 1.0;
+          part_cut_weights[p]  = max_c * avg_cut_sizes[p] / (double)part_cut_sizes[p] - 1.0;
 
           if (part_weights[p] < 0.0)
             part_weights[p] = 0.0;
@@ -2322,9 +2334,9 @@ void label_balance_edges_maxcut_weighted_interpart_capacitated(
         #pragma omp for schedule(guided) reduction(+:num_swapped_2) nowait
         for (int i = 0; i < queue_size; ++i)
         {
-          int v       = queue[i];
-          in_queue[v] = false;
-          int part    = parts[v];
+          int v        = queue[i];
+          in_queue[v]  = false;
+          int part     = parts[v];
           int v_weight = 1;
           if (has_vwgts) v_weight = g.vertex_weights[v];
 
@@ -2367,14 +2379,14 @@ void label_balance_edges_maxcut_weighted_interpart_capacitated(
   				// SWAP IF IMPROVEMENT (only if it improves the balance ratios)
           if (max_part != part)
           {
-            int    diff_part        = 2*part_count - sum_weights;
-            int    diff_max_part    = sum_weights - 2*max_count;
-            int    diff_cut         = diff_part + diff_max_part;
-            double new_max_imb      = (double)(part_sizes[max_part] + v_weight) / avg_sizes[p];
-            double new_max_edge_imb = (double)(part_edge_sizes[max_part] + out_degree) / avg_edge_size;
-            double new_max_cut_imb  = (double)(part_cut_sizes[max_part] + diff_max_part) / avg_cut_size;
-            double new_cut_imb      = (double)(part_cut_sizes[part] + diff_part) / avg_cut_size;
-            
+            int diff_part     = 2*part_count - sum_weights;
+            int diff_max_part = sum_weights - 2*max_count;
+            int diff_cut      = diff_part + diff_max_part;
+            double new_max_imb      = (double)(part_sizes[max_part] + v_weight) / avg_sizes[max_part];
+            double new_max_edge_imb = (double)(part_edge_sizes[max_part] + out_degree) / avg_edge_sizes[max_part];
+            double new_max_cut_imb  = (double)(part_cut_sizes[max_part] + diff_max_part) / avg_cut_sizes[max_part];
+            double new_cut_imb      = (double)(part_cut_sizes[part] + diff_part) / avg_cut_sizes[part];
+
             if (new_max_imb < vert_balance &&
                 new_max_edge_imb < max_e &&
                 new_max_cut_imb < max_c &&
@@ -2401,7 +2413,10 @@ void label_balance_edges_maxcut_weighted_interpart_capacitated(
               #pragma omp atomic
               part_edge_sizes[part]     -= out_degree;
 
-              avg_cut_size = cut_size / num_parts;
+              unit_avg_cut_size = (double)cut_size / (double)g.partition_capacities_sum;
+              for (int i = 0; i < num_parts; ++i)
+                avg_cut_sizes[i] = unit_avg_cut_size * g.partition_capacities[i];
+
 
               if (!in_queue_next[v])
               {
@@ -2474,10 +2489,10 @@ void label_balance_edges_maxcut_weighted_interpart_capacitated(
           max_c = 0.0;
           for (int p = 0; p < num_parts; ++p)
           {
-            if ((double)part_edge_sizes[p] / avg_edge_size > max_e)
-              max_e = (double)part_edge_sizes[p] / avg_edge_size;
-            if ((double)part_cut_sizes[p] / avg_cut_size > max_c)
-              max_c = (double)part_cut_sizes[p] / avg_cut_size;
+            if ((double)part_edge_sizes[p] / avg_edge_sizes[p] > max_e)
+              max_e = (double)part_edge_sizes[p] / avg_edge_sizes[p];
+            if ((double)part_cut_sizes[p] / avg_cut_sizes[p] > max_c)
+              max_c = (double)part_cut_sizes[p] / avg_cut_sizes[p];
           }
           if (max_e < edge_balance)
           {
@@ -2523,6 +2538,9 @@ void label_balance_edges_maxcut_weighted_interpart_capacitated(
 
   } // end omp parallel
 
+  delete [] avg_sizes;
+  delete [] avg_edge_sizes;
+  delete [] avg_cut_sizes;
 
   delete [] part_sizes;
   delete [] part_edge_sizes;

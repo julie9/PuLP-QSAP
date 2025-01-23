@@ -129,20 +129,21 @@ int main(int argc, char** argv)
   char interpart_weights_file[1024] = "\0";
   char partition_weights_file[1024] = "\0";
 
-  double vert_balance       = 1.10;
-  double edge_balance       = 1.50;
-  bool   do_bfs_init        = true;
-  bool   do_lp_init         = false;
-  bool   do_edge_balance    = false;
-  bool   do_maxcut_balance  = false;
-  bool   eval_quality       = false;
-  int    pulp_seed          = rand();
+  double vert_balance      = 1.10;
+  double edge_balance      = 1.50;
+  bool   do_bfs_init       = true;
+  bool   do_lp_init        = false;
+  bool   do_edge_balance   = false;
+  bool   do_maxcut_balance = false;
+  bool   do_bin_packing    = false;
+  bool   eval_quality      = false;
+  int    pulp_seed         = rand();
 
   bool using_interpartition_weights = false;
   bool using_partition_capacities   = false;
 
   char c;
-  while ((c = getopt (argc, argv, "v:e:i:o:cs:lm:qw:p:")) != -1)
+  while ((c = getopt (argc, argv, "v:e:i:o:cs:lm:qw:p:b")) != -1)
   {
     switch (c)
     {
@@ -182,6 +183,9 @@ int main(int argc, char** argv)
       case 'p':                               // -p flag : partition capacity (ex: computational power)
         strcpy(partition_weights_file, optarg);
         using_partition_capacities = true;
+        break;
+      case 'b':                               // -b flag : do bin packing (minimize number of parts if possible)
+        do_bin_packing = true;
         break;
       case '?':
       {
@@ -232,6 +236,7 @@ int main(int argc, char** argv)
   pulp_graph_t g = {
     .n                        = n,
     .m                        = m,
+    .do_bin_packing           = do_bin_packing,
     .out_array                = out_array,
     .out_degree_list          = out_degree_list,
     .vertex_weights           = vertex_weights,

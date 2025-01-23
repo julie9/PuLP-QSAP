@@ -627,7 +627,8 @@ label_prop_weighted_interpart(pulp_graph_t& g, int num_parts, int* parts, int la
         // Swap the vertex to the partition with the maximum count
         // -----------------------------------------------------
         if (max_part != part &&
-            (part_sizes[part] - v_weight > (int)min_size))
+           ((part_sizes[part] - v_weight > (int)min_size) ||
+            g.do_bin_packing))
         {
           parts[v] = max_part; // Move vertex v to the partition with the maximum count
           ++num_changes;

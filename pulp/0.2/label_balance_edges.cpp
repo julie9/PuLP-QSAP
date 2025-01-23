@@ -178,7 +178,8 @@ void label_balance_edges(pulp_graph_t& g, int num_parts, int* parts,
           double max_val  = 0.0;
           for (int p = 0; p < num_parts; ++p)
           {
-            if (part_weights[p] > 0.0 && part_edge_weights[p] > 0.0)
+            if (part_weights[p] > 0.0 &&
+                part_edge_weights[p] > 0.0)
               part_counts[p] *= (part_weights[p]*part_edge_weights[p]*weight_exponent_e);
             else
               part_counts[p] = 0.0;
@@ -661,6 +662,7 @@ void label_balance_edges_weighted(
           {
             parts[v] = max_part;
             ++num_swapped_1;
+            
             #pragma omp atomic
             part_sizes[part] -= v_weight;
             #pragma omp atomic

@@ -1959,7 +1959,7 @@ void label_balance_edges_maxcut_weighted_interpart_capacitated(
       int      part       = parts[i];
       unsigned out_degree = out_degree(g, i); // get the out degree of vertex i
       if (has_vwgts)
-        part_sizes_thread[part] += g.vertex_weights[i];
+      part_sizes_thread[part] += g.vertex_weights[i];
       else
         ++part_sizes_thread[part];
 
@@ -1977,7 +1977,7 @@ void label_balance_edges_maxcut_weighted_interpart_capacitated(
         if (out_part != part)
         {
           if (has_ewgts)
-          {
+        {
             part_cut_sizes_thread[part] += weights[j] * partition_comm_weights[out_part];
             cut_size_thread             += weights[j] * partition_comm_weights[out_part];
           }
@@ -2147,7 +2147,8 @@ void label_balance_edges_maxcut_weighted_interpart_capacitated(
           }
 
           if (max_part != part &&
-				    	part_sizes[part] - v_weight > 0)
+				    	(part_sizes[part] - v_weight > 0 ||
+              g.do_bin_packing))
           {
             parts[v] = max_part;
             ++num_swapped_1;
@@ -2390,7 +2391,9 @@ void label_balance_edges_maxcut_weighted_interpart_capacitated(
             if (new_max_imb < vert_balance &&
                 new_max_edge_imb < max_e &&
                 new_max_cut_imb < max_c &&
-                new_cut_imb < max_c)
+                new_cut_imb < max_c &&
+                (part_sizes[part] > v_weight ||
+                 g.do_bin_packing))
             {
               ++num_swapped_2;
               parts[v] = max_part;
@@ -2404,9 +2407,9 @@ void label_balance_edges_maxcut_weighted_interpart_capacitated(
               part_cut_sizes[max_part] += diff_max_part;
 
               #pragma omp atomic
-              ++part_sizes[max_part];
+              part_sizes[max_part] += v_weight;
               #pragma omp atomic
-              --part_sizes[part];
+              part_sizes[part]    -= v_weight;
 
               #pragma omp atomic
               part_edge_sizes[max_part] += out_degree;

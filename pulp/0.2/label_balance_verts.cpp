@@ -1484,8 +1484,9 @@ label_balance_verts_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, 
           // -----------------------------------------------------
           // Swap vertex v to the partition with the maximum count
           // -----------------------------------------------------
-          if (max_part != part &&                 // check if not already in the largest partition
-              (part_sizes[part] - v_weight) > 0)  // and if the partition is not empty
+          if (max_part != part &&                   // check if not already in the largest partition
+              ((part_sizes[part] - v_weight) > 0 || // and if the partition is not empty
+               g.do_bin_packing))
           {
             parts[v] = max_part; // reassign vertex v to the largest partition
             ++num_swapped_1;     // increment the number of vertices swapped
@@ -1649,7 +1650,7 @@ label_balance_verts_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, 
           // Swap vertex v to the partition with the maximum count
           // -----------------------------------------------------
           if (max_part != part &&
-					    part_sizes[part] - v_weight > 0)
+					    (part_sizes[part] - v_weight > 0 || g.do_bin_packing))
           {
             //TODO(julie9): This is a place where the capacity has to be used.
             double new_max_imb = (double)(part_sizes[max_part] + v_weight) / avg_sizes[max_part];
@@ -1760,8 +1761,8 @@ label_balance_verts_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, 
         }
         else
           ++t;
-      } // end single
-    } // end for
+      } // end omp single
+    } // end while t < vert_outer_iter
 
     delete [] part_counts;
     delete [] part_weights;

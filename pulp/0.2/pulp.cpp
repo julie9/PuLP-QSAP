@@ -80,7 +80,7 @@ pulp_run(pulp_graph_t* g, pulp_part_control_t* ppc, int* parts, int num_parts)
 
   double verbose            = ppc->verbose_output;
 
-  double vert_balance_lower = 0.25;
+  double vert_balance_lower = 0.75;
   double vert_balance       = ppc->vert_balance;
   double edge_balance       = ppc->edge_balance;
 
@@ -91,20 +91,22 @@ pulp_run(pulp_graph_t* g, pulp_part_control_t* ppc, int* parts, int num_parts)
   bool   do_edge_balance    = ppc->do_edge_balance;
   bool   do_maxcut_balance  = ppc->do_maxcut_balance;
 
+  // bool   do_bin_packing     = g->do_bin_packing;
+
   bool   using_interpartition_weights = ppc->using_interpartition_weights;
   bool   using_partition_capacities   = ppc->using_partition_capacities;
 
-  int iter_mult0 = 1;
-  int iter_mult1 = 1;
-  int iter_mult2 = 1;
+  int iter_mult_init = 1;
+  int iter_mult_vert = 3;
+  int iter_mult_edge = 1;
   int balance_outer_iter =  1;
-  int label_prop_iter    =  3 * iter_mult0;
-  int vert_outer_iter    =  3 * iter_mult1;
-  int vert_balance_iter  =  5 * iter_mult1;
-  int vert_refine_iter   = 10 * iter_mult1;
-  int edge_outer_iter    =  3 * iter_mult2;
-  int edge_balance_iter  =  5 * iter_mult2;
-  int edge_refine_iter   = 10 * iter_mult2;
+  int label_prop_iter    =  3 * iter_mult_init;
+  int vert_outer_iter    =  3 * iter_mult_vert;
+  int vert_balance_iter  =  5 * iter_mult_vert;
+  int vert_refine_iter   = 10 * iter_mult_vert;
+  int edge_outer_iter    =  3 * iter_mult_edge;
+  int edge_balance_iter  =  5 * iter_mult_edge;
+  int edge_refine_iter   = 10 * iter_mult_edge;
 
   seed = ppc->pulp_seed;
 
@@ -199,10 +201,22 @@ pulp_run(pulp_graph_t* g, pulp_part_control_t* ppc, int* parts, int num_parts)
            g->vertex_weights != NULL &&
            do_nonrandom_init)
   {
-    if (verbose) printf("\tDoing weigthed and capacitated bfs init stage with %d parts\n", num_parts);
+    if (verbose) printf("\tDoing bfs (weigthed and capacitated) init stage with %d parts\n", num_parts);
     elt2 = timer();
 
     init_nonrandom_constrained_capacity(*g, num_parts, parts, vert_balance);
+
+    elt2 = timer() - elt2;
+    if (verbose) printf("\t Done: %9.6lf seconds\n", elt2);
+  }
+  // .........................................................................
+  else if (g->vertex_weights != NULL &&
+           do_nonrandom_init)
+  {
+    if (verbose) printf("\tDoing bfs (size constrained) init stage with %d parts\n", num_parts);
+    elt2 = timer();
+
+    init_nonrandom_constrained(*g, num_parts, parts);
 
     elt2 = timer() - elt2;
     if (verbose) printf("\t Done: %9.6lf seconds\n", elt2);

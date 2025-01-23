@@ -61,6 +61,7 @@
 typedef struct {
   int   n;
   long  m;
+  bool  do_bin_packing;  // allows to remove parts
   int*  out_array;
   long* out_degree_list;
   int*  vertex_weights;
@@ -76,7 +77,6 @@ typedef struct {
 #define out_weights(g, n)                       &g.edge_weights[g.out_degree_list[n]]
 #define out_interpart_weights(g, p, num_part)   &g.interpartition_weights[p * num_part]
 
-
 typedef struct {
   double vert_balance;
   double edge_balance;
@@ -90,7 +90,6 @@ typedef struct {
   bool using_partition_capacities;    // computational power of partitions (e.g. processors)
 
   bool verbose_output;
-
   int pulp_seed;
 } pulp_part_control_t;
 

@@ -567,7 +567,9 @@ void label_balance_edges_maxcut(pulp_graph_t& g, int num_parts, int* parts,
 
       #pragma omp single
       {
-        if (max_e > edge_balance*1.01 && t == edge_outer_iter-1 && num_tries < 3)
+        if (max_e > edge_balance*1.01 &&
+            t == edge_outer_iter-1 &&
+            num_tries < MAX_TRIES)
         {
           --t;
           if (max_e < running_max_e*0.99)
@@ -1168,7 +1170,7 @@ void label_balance_edges_maxcut_weighted(
 
       #pragma omp single
       {
-        if (max_e > edge_balance*1.01 && t == edge_outer_iter-1 && num_tries < 3)
+        if (max_e > edge_balance*1.01 && t == edge_outer_iter-1 && num_tries < MAX_TRIES)
         {
           --t;
           if (max_e < running_max_e*0.99)
@@ -1823,7 +1825,7 @@ void label_balance_edges_maxcut_weighted_interpart(
 
       #pragma omp single
       {
-        if (max_e > edge_balance*1.01 && t == edge_outer_iter-1 && num_tries < 3)
+        if (max_e > edge_balance*1.01 && t == edge_outer_iter-1 && num_tries < MAX_TRIES)
         {
           --t;
           if (max_e < running_max_e*0.99)
@@ -2517,7 +2519,7 @@ void label_balance_edges_maxcut_weighted_interpart_capacitated(
 
       #pragma omp single
       {
-        if (max_e > edge_balance*1.01 && t == edge_outer_iter-1 && num_tries < 3)
+        if (max_e > edge_balance*1.01 && t == edge_outer_iter-1 && num_tries < MAX_TRIES)
         {
           --t;
           if (max_e < running_max_e*0.99)

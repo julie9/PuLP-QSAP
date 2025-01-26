@@ -384,7 +384,9 @@ void label_balance_verts(pulp_graph_t& g, int num_parts, int* parts,
 
       #pragma omp single
       {
-        if (max_v > vert_balance*1.01 && t == vert_outer_iter-1 && num_tries < 3)
+        if (max_v > vert_balance*1.01 &&
+            t == vert_outer_iter-1 &&
+            num_tries < MAX_TRIES)
         {
           --t;
           if (max_v < running_max_v)
@@ -781,7 +783,9 @@ void label_balance_verts_weighted(
 
       #pragma omp single
       {
-        if (max_v > vert_balance*1.01 && t == vert_outer_iter-1 && num_tries < 3)
+        if (max_v > vert_balance*1.01 &&
+            t == vert_outer_iter-1 &&
+            num_tries < MAX_TRIES)
         {
           --t;
           if (max_v < running_max_v)
@@ -1259,7 +1263,7 @@ label_balance_verts_weighted_interpart(pulp_graph_t& g, int num_parts, int* part
       {
         if (max_v > vert_balance*1.01 &&
             t == vert_outer_iter-1 &&
-            num_tries < 3)
+            num_tries < MAX_TRIES)
         {
           --t;
           if (max_v < running_max_v)
@@ -1748,7 +1752,7 @@ label_balance_verts_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, 
       {
         if (max_v > vert_balance*1.01 &&
             t == vert_outer_iter-1 &&
-            num_tries < 3)
+            num_tries < MAX_TRIES)
         {
           --t;
           if (max_v < running_max_v)

@@ -461,7 +461,9 @@ void label_balance_edges(pulp_graph_t& g, int num_parts, int* parts,
 
     #pragma omp single
     {
-      if (max_e > edge_balance*1.01 && t == edge_outer_iter-1 && num_tries < 3)
+      if (max_e > edge_balance*1.01 &&
+          t == edge_outer_iter-1 &&
+          num_tries < MAX_TRIES)
       {
         --t;
         if (max_e < running_max_e*0.99)
@@ -662,7 +664,7 @@ void label_balance_edges_weighted(
           {
             parts[v] = max_part;
             ++num_swapped_1;
-            
+
             #pragma omp atomic
             part_sizes[part] -= v_weight;
             #pragma omp atomic
@@ -930,7 +932,9 @@ void label_balance_edges_weighted(
 
       #pragma omp single
       {
-        if (max_e > edge_balance*1.01 && t == edge_outer_iter-1 && num_tries < 3)
+        if (max_e > edge_balance*1.01 &&
+            t == edge_outer_iter-1 &&
+            num_tries < MAX_TRIES)
         {
           --t;
           if (max_e < running_max_e*0.99)

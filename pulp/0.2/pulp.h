@@ -54,6 +54,7 @@
 #define DO_EVAL 0
 #define THREAD_QUEUE_SIZE 2048
 #define QUEUE_MULTIPLIER 2
+#define MAX_TRIES 3
 
 //typedef int32_t pulp_part_t;
 //typedef int32_t pulp_vert_t;

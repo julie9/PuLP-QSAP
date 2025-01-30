@@ -46,7 +46,7 @@
 
 
 
-#define VERBOSE 0
+#define VERBOSE 1
 #define DEBUG 0
 #define OUTPUT_STEP 0
 #define OUTPUT_TIME 1
@@ -55,14 +55,15 @@
 #define THREAD_QUEUE_SIZE 2048
 #define QUEUE_MULTIPLIER 2
 #define MAX_TRIES 3
+#define RANDOM_BFS_TRIES 10000 // number of attempts to find a valid part in random BFS init
 
 //typedef int32_t pulp_part_t;
 //typedef int32_t pulp_vert_t;
 
 typedef struct {
-  int   n;
-  long  m;
-  bool  do_bin_packing;  // allows to remove parts
+  // TODO(julie): order the struct (or create another for optional argument), if it can help the compiler to optimize?
+  int   n; // number of vertices
+  long  m; // number of edges
   int*  out_array;
   long* out_degree_list;
   int*  vertex_weights;
@@ -71,6 +72,8 @@ typedef struct {
   int*  interpartition_weights;
   int*  partition_capacities;
   long  partition_capacities_sum;
+  int   max_partition_size;
+  bool  do_bin_packing;  // allows to remove parts
 } pulp_graph_t;
 
 #define out_degree(g, n)                        (g.out_degree_list[n+1] - g.out_degree_list[n])
@@ -85,6 +88,7 @@ typedef struct {
   bool do_lp_init;
   bool do_bfs_init;
   // bool do_repart; // not used.
+  bool do_vert_balance;
   bool do_edge_balance;
   bool do_maxcut_balance;
   bool using_interpartition_weights;  // communication between partitions

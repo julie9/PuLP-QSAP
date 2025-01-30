@@ -105,9 +105,14 @@ void label_balance_verts(pulp_graph_t& g, int num_parts, int* parts,
 
     for (int p = 0; p < num_parts; ++p)
     {
-      part_weights[p] = vert_balance * avg_size / (double)part_sizes[p] - 1.0;
+if (part_sizes[p] == 0)
+        part_weights[p] = numeric_limits<double>::max();
+      else
+      {
+      part_weights[p] = (vert_balance * avg_size / (double)part_sizes[p]) - 1.0;
       if (part_weights[p] < 0.0)
         part_weights[p] = 0.0;
+}
     }
 
     while(t < vert_outer_iter)
@@ -232,7 +237,7 @@ void label_balance_verts(pulp_graph_t& g, int num_parts, int* parts,
         #pragma omp single
         {
           #if VERBOSE
-            printf("%d\n", num_swapped_1);
+				    printf("num_swapped_1 (vert, balance): %d\n", num_swapped_1);
           #endif
           int*  temp    = queue;
           queue         = queue_next;
@@ -295,7 +300,7 @@ void label_balance_verts(pulp_graph_t& g, int num_parts, int* parts,
           if (max_part != part)
           {
             double new_max_imb = (double)(part_sizes[max_part] + 1) / avg_size;
-            if ( new_max_imb < vert_balance)
+            if (new_max_imb < vert_balance)
             {
               ++num_swapped_2;
               parts[v] = max_part;
@@ -357,7 +362,7 @@ void label_balance_verts(pulp_graph_t& g, int num_parts, int* parts,
         #pragma omp single
         {
           #if VERBOSE
-            printf("%d\n", num_swapped_2);
+					  printf("num_swapped_2 (vert, refine): %d\n", num_swapped_2);
           #endif
           int* temp = queue;
           queue = queue_next;
@@ -489,9 +494,15 @@ void label_balance_verts_weighted(
 
     for (int p = 0; p < num_parts; ++p)
     {
-      part_weights[p] = vert_balance * avg_size / (double)part_sizes[p] - 1.0;
-      if (part_weights[p] < 0.0)
-        part_weights[p] = 0.0;
+      if (part_sizes[p] == 0)
+        part_weights[p] = numeric_limits<double>::max();
+        //TODO(julie): max here is not aligned with the idea of bin packing
+        //where we want to minimize the number of bins
+      else
+      {
+        part_weights[p] = (vert_balance * avg_size / (double)part_sizes[p]) - 1.0;
+        if (part_weights[p] < 0.0) part_weights[p] = 0.0;
+      }
     }
 
     while(t < vert_outer_iter)
@@ -554,14 +565,23 @@ void label_balance_verts_weighted(
 
           if (max_part != part)
           {
+
+            if (g.max_partition_size > 0 &&
+                part_sizes[max_part] + v_weight > g.max_partition_size)
+            {
+              // printf("max partition size reached for part %d\n", max_part);
+              continue;
+            }
+            // printf("Swapping vertex from part %d to part %d (size %ld -> %ld)\n",
+            //         part, max_part, part_sizes[part], part_sizes[max_part]);
+
             parts[v] = max_part;
             ++num_swapped_1;
 
             #pragma omp atomic
             part_sizes[max_part] += v_weight;
-
             #pragma omp atomic
-            part_sizes[part] -= v_weight;
+            part_sizes[part]     -= v_weight;
 
             part_weights[part]     = vert_balance * avg_size / (double)part_sizes[part] - 1.0;
             part_weights[max_part] = vert_balance * avg_size / (double)part_sizes[max_part]  - 1.0;
@@ -623,7 +643,7 @@ void label_balance_verts_weighted(
         #pragma omp single
         {
           #if VERBOSE
-            printf("%d\n", num_swapped_1);
+				    printf("num_swapped_1 (vert, balance): %d\n", num_swapped_1);
           #endif
 
           int*  temp    = queue;
@@ -660,9 +680,9 @@ void label_balance_verts_weighted(
         #pragma omp for schedule(guided) reduction(+:num_swapped_2) nowait
         for (int i = 0; i < queue_size; ++i)
         {
-          int v = queue[i];
-          in_queue[v] = false;
-          int part = parts[v];
+          int v        = queue[i];
+          in_queue[v]  = false;
+          int part     = parts[v];
           int v_weight = 1;
           if (has_vwgts) v_weight = g.vertex_weights[v];
 
@@ -692,6 +712,16 @@ void label_balance_verts_weighted(
 
           if (max_part != part)
           {
+
+            if (g.max_partition_size > 0 &&
+                part_sizes[max_part] + v_weight > g.max_partition_size)
+            {
+              printf("max partition size reached for part %d (refine stage)\n", max_part);
+              continue;
+            }
+            printf("Swapping vertex from part %d to part %d (refine, size %ld -> %ld)\n",
+                    part, max_part, part_sizes[part], part_sizes[max_part]);
+
             double new_max_imb = (double)(part_sizes[max_part] + v_weight) / avg_size;
             if (new_max_imb < vert_balance)
             {
@@ -700,7 +730,7 @@ void label_balance_verts_weighted(
               #pragma omp atomic
               part_sizes[max_part] += v_weight;
               #pragma omp atomic
-              part_sizes[part] -= v_weight;
+              part_sizes[part]     -= v_weight;
 
               if (!in_queue_next[v])
               {
@@ -756,7 +786,7 @@ void label_balance_verts_weighted(
         #pragma omp single
         {
           #if VERBOSE
-            printf("%d\n", num_swapped_2);
+					  printf("num_swapped_2 (vert, refine): %d\n", num_swapped_2);
           #endif
           int*  temp    = queue;
           queue         = queue_next;
@@ -825,7 +855,9 @@ void label_balance_verts_weighted(
 ##  ##  ##     ##     ########  ##     ## ##          ##     ## ######   ########     ##
 ##  ##  ##     ##     ##     ## ######### ##           ##   ##  ##       ##   ##      ##
 ##  ##  ##     ##     ##     ## ##     ## ##            ## ##   ##       ##    ##     ##
- ###  ###     ####    ########  ##     ## ########       ###    ######## ##     ##    ##    */
+ ###  ###     ####    ########  ##     ## ########       ###    ######## ##     ##    ##
+*/
+
 void
 label_balance_verts_weighted_interpart(pulp_graph_t& g, int num_parts, int* parts,
   int vert_outer_iter, int vert_balance_iter, int vert_refine_iter, double vert_balance)
@@ -891,20 +923,23 @@ label_balance_verts_weighted_interpart(pulp_graph_t& g, int num_parts, int* part
     int thread_queue_size = 0;
     int thread_start;
 
+
     for (int p = 0; p < num_parts; ++p)
     {
       if (part_sizes[p] == 0)
         part_weights[p] = numeric_limits<double>::max();
+      else if (g.max_partition_size > 0 &&
+               part_sizes[p] > g.max_partition_size)
+      {
+        part_weights[p] = 0.0;
+        printf("Partition %d is overloaded (max_partition_size) at %ld\n", p, part_sizes[p]);
+      }
       else
       {
         part_weights[p] = (vert_balance * avg_size / (double)part_sizes[p]) - 1.0;
-        // This ensures that partitions with higher capacities are more
-        // attractive for adding vertices, reflecting their ability to handle
-        // more load. adjust part_weights based on vertex weights (containts the
-        // sum of vertex weights in each partition and the partition weights.)
-      }
       if (part_weights[p] < 0.0)
         part_weights[p] = 0.0;
+      }
     }
 
     // ======================================================
@@ -1002,8 +1037,9 @@ label_balance_verts_weighted_interpart(pulp_graph_t& g, int num_parts, int* part
           // -----------------------------------------------------
           // Swap vertex v to the partition with the maximum count
           // -----------------------------------------------------
-          if (max_part != part &&                 // check if not already in the largest partition
-              (part_sizes[part] - v_weight) > 0)  // and if the partition is not empty
+          if (max_part != part &&                   // check if not already in the largest partition
+              ((part_sizes[part] - v_weight) > 0 || // and if the partition is not empty
+               g.do_bin_packing))                   // or bin packing is enabled
           {
             parts[v] = max_part; // reassign vertex v to the largest partition
             ++num_swapped_1;     // increment the number of vertices swapped
@@ -1166,7 +1202,8 @@ label_balance_verts_weighted_interpart(pulp_graph_t& g, int num_parts, int* part
           // Swap vertex v to the partition with the maximum count
           // -----------------------------------------------------
           if (max_part != part &&
-					    part_sizes[part] - v_weight > 0)
+					    ((part_sizes[part] - v_weight) > 0 || // and if the partition is not empty
+               g.do_bin_packing))
           {
             double new_max_imb = (double)(part_sizes[max_part] + v_weight) / avg_size;
 
@@ -1378,19 +1415,11 @@ label_balance_verts_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, 
     {
       if (part_sizes[p] == 0)
         part_weights[p] = numeric_limits<double>::max();
-        // Note(julie9): added this line to prevent division by zero
       else
       {
         part_weights[p] = (vert_balance * avg_sizes[p] / (double)part_sizes[p]) - 1.0;
-        // Notes(julie9): This ensures that partitions with higher capacities
-        // are more attractive for adding vertices, reflecting their ability to
-        // handle more load. adjust part_weights based on vertex weights
-        // (containts the sum of vertex weights in each partition and the
-        // partition weights.)
+        if (part_weights[p] < 0.0) part_weights[p] = 0.0;
       }
-      if (part_weights[p] < 0.0)
-        part_weights[p] = 0.0;
-        // Notes(julie9): This ensures no negative weights.
     }
 
     // ======================================================
@@ -1468,10 +1497,10 @@ label_balance_verts_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, 
             // partition.
             //
             // - If a partition is underloaded (i.e., its size is less than the average
-            // size), its weight will be greater than 0, making it more attractive.
+            //   size), its weight will be greater than 0, making it more attractive.
             //
             // - Conversely, if a partition is overloaded, its weight will be 0, making it
-            // less attractive.
+            //   impossible to add more vertices.
             //
             // Biases the decision towards balancing the partitions according to the
             // specified balance constraint.
@@ -1492,6 +1521,10 @@ label_balance_verts_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, 
               ((part_sizes[part] - v_weight) > 0 || // and if the partition is not empty
                g.do_bin_packing))
           {
+            if (g.max_partition_size > 0 &&
+                (part_sizes[max_part]+v_weight) > (g.max_partition_size*g.partition_capacities[max_part]))
+              continue;
+
             parts[v] = max_part; // reassign vertex v to the largest partition
             ++num_swapped_1;     // increment the number of vertices swapped
 
@@ -1656,8 +1689,13 @@ label_balance_verts_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, 
           if (max_part != part &&
 					    (part_sizes[part] - v_weight > 0 || g.do_bin_packing))
           {
-            //TODO(julie9): This is a place where the capacity has to be used.
-            double new_max_imb = (double)(part_sizes[max_part] + v_weight) / avg_sizes[max_part];
+
+            if (g.max_partition_size > 0 &&
+                (part_sizes[max_part]+v_weight) > (g.max_partition_size*g.partition_capacities[max_part]))
+              continue;
+
+            double new_max_imb = (double)(part_sizes[max_part] + v_weight)
+                                         / avg_sizes[max_part];
 
             if (new_max_imb < vert_balance)
             {

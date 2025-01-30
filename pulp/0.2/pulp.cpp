@@ -87,11 +87,9 @@ pulp_run(pulp_graph_t* g, pulp_part_control_t* ppc, int* parts, int num_parts)
   double do_label_prop      = ppc->do_lp_init;
   double do_nonrandom_init  = ppc->do_bfs_init;
 
-  bool   do_vert_balance    = true;
+  bool   do_vert_balance    = ppc->do_vert_balance;
   bool   do_edge_balance    = ppc->do_edge_balance;
   bool   do_maxcut_balance  = ppc->do_maxcut_balance;
-
-  // bool   do_bin_packing     = g->do_bin_packing;
 
   bool   using_interpartition_weights = ppc->using_interpartition_weights;
   bool   using_partition_capacities   = ppc->using_partition_capacities;

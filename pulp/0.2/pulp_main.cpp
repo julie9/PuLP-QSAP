@@ -129,26 +129,29 @@ int main(int argc, char** argv)
   char interpart_weights_file[1024] = "\0";
   char partition_weights_file[1024] = "\0";
 
-  double vert_balance      = 1.10;
-  double edge_balance      = 1.50;
-  bool   do_bfs_init       = true;
-  bool   do_lp_init        = false;
-  bool   do_edge_balance   = false;
-  bool   do_maxcut_balance = false;
-  bool   do_bin_packing    = false;
-  bool   eval_quality      = false;
-  int    pulp_seed         = rand();
+  double vert_balance       = 1.10;
+  double edge_balance       = 1.50;
+  bool   do_bfs_init        = true;
+  bool   do_lp_init         = false;
+  bool   do_edge_balance    = false;
+  bool   do_vert_balance    = false;
+  bool   do_maxcut_balance  = false;
+  bool   do_bin_packing     = false;
+int    max_partition_size = 0;
+  bool   eval_quality       = false;
+  int    pulp_seed          = rand();
 
   bool using_interpartition_weights = false;
   bool using_partition_capacities   = false;
 
   char c;
-  while ((c = getopt (argc, argv, "v:e:i:o:cs:lm:qw:p:b")) != -1)
+  while ((c = getopt (argc, argv, "v:e:i:o:cs:lm:qw:p:ba:")) != -1)
   {
     switch (c)
     {
       case 'v':                               // -v flag : vertex balance
         vert_balance = strtod(optarg, NULL);
+do_vert_balance = true;
         break;
       case 'e':                               // -e flag : edge balance
         edge_balance = strtod(optarg, NULL);
@@ -186,6 +189,9 @@ int main(int argc, char** argv)
         break;
       case 'b':                               // -b flag : do bin packing (minimize number of parts if possible)
         do_bin_packing = true;
+        break;
+case 'a':                               // -a flag : cap the largest vertex weight to the partition capacity
+        max_partition_size = atoi(optarg);
         break;
       case '?':
       {
@@ -236,15 +242,16 @@ int main(int argc, char** argv)
   pulp_graph_t g = {
     .n                        = n,
     .m                        = m,
-    .do_bin_packing           = do_bin_packing,
-    .out_array                = out_array,
+        .out_array                = out_array,
     .out_degree_list          = out_degree_list,
     .vertex_weights           = vertex_weights,
     .edge_weights             = edge_weights,
     .vertex_weights_sum       = vertex_weights_sum,
     .interpartition_weights   = interpartition_weights,
     .partition_capacities     = partition_capacities,
-    .partition_capacities_sum = partition_capacities_sum
+    .partition_capacities_sum = partition_capacities_sum,
+    .max_partition_size       = max_partition_size,
+    .do_bin_packing           = do_bin_packing,
   };
 
   elt = timer() - elt;
@@ -278,6 +285,7 @@ int main(int argc, char** argv)
       .edge_balance                 = edge_balance,
       .do_lp_init                   = do_lp_init,
       .do_bfs_init                  = do_bfs_init,
+.do_vert_balance              = do_vert_balance,
       .do_edge_balance              = do_edge_balance,
       .do_maxcut_balance            = do_maxcut_balance,
       .using_interpartition_weights = using_interpartition_weights,

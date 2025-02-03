@@ -629,7 +629,7 @@ label_prop_weighted_interpart(pulp_graph_t& g, int num_parts, int* parts, int la
         if (max_part != part &&
            ((part_sizes[part] - v_weight > (int)min_size) ||
             g.do_bin_packing))
-        {
+          {
           parts[v] = max_part; // Move vertex v to the partition with the maximum count
           ++num_changes;
 
@@ -769,6 +769,8 @@ label_prop_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, int* part
   int   next_size     = 0;
 
   double  unit_avg_size = (double)g.vertex_weights_sum / (double)g.partition_capacities_sum;
+
+  // TODO(julie9): Update based on the version in random init.
   double* min_sizes          = new double[num_parts];
   for (int i = 0; i < num_parts; ++i)
     min_sizes[i] = unit_avg_size * g.partition_capacities[i] * balance_vert_lower;

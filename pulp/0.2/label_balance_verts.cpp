@@ -711,7 +711,7 @@ void label_balance_verts_weighted(
             if (g.max_partition_size > 0 &&
                 part_sizes[max_part] + v_weight > g.max_partition_size)
               continue;
-            
+
             double new_max_imb = (double)(part_sizes[max_part] + v_weight) / avg_size;
             if (new_max_imb < vert_balance)
             {
@@ -1027,10 +1027,12 @@ label_balance_verts_weighted_interpart(pulp_graph_t& g, int num_parts, int* part
           // -----------------------------------------------------
           // Swap vertex v to the partition with the maximum count
           // -----------------------------------------------------
-          if (max_part != part &&                   // check if not already in the largest partition
-              ((part_sizes[part] - v_weight) > 0 || // and if the partition is not empty
-               g.do_bin_packing))                   // or bin packing is enabled
+          if (max_part != part)
           {
+
+            if (g.do_bin_packing &&
+              (part_sizes[part] - v_weight <= 0))
+              continue;
 
             if (g.max_partition_size > 0 &&
                 part_sizes[max_part] + v_weight > g.max_partition_size)
@@ -1196,10 +1198,12 @@ label_balance_verts_weighted_interpart(pulp_graph_t& g, int num_parts, int* part
           // -----------------------------------------------------
           // Swap vertex v to the partition with the maximum count
           // -----------------------------------------------------
-          if (max_part != part &&
-					    ((part_sizes[part] - v_weight) > 0 || // and if the partition is not empty
-               g.do_bin_packing))
+          if (max_part != part)
           {
+
+            if (g.do_bin_packing &&
+              (part_sizes[part] - v_weight <= 0))
+              continue;
 
             if (g.max_partition_size > 0 &&
                 (part_sizes[max_part]+v_weight) > (g.max_partition_size*g.partition_capacities[max_part]))
@@ -1528,10 +1532,12 @@ label_balance_verts_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, 
           // -----------------------------------------------------
           // Swap vertex v to the partition with the maximum count
           // -----------------------------------------------------
-          if (max_part != part &&                   // check if not already in the largest partition
-              ((part_sizes[part] - v_weight) > 0 || // and if the partition is not empty
-               g.do_bin_packing))
+          if (max_part != part)
           {
+
+            if (g.do_bin_packing &&
+              (part_sizes[part] - v_weight <= 0))
+              continue;
 
             if (g.max_partition_size > 0 &&
                 (part_sizes[max_part]+v_weight) > (g.max_partition_size*g.partition_capacities[max_part]))
@@ -1698,9 +1704,12 @@ label_balance_verts_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, 
           // -----------------------------------------------------
           // Swap vertex v to the partition with the maximum count
           // -----------------------------------------------------
-          if (max_part != part &&
-					    (part_sizes[part] - v_weight > 0 || g.do_bin_packing))
+          if (max_part != part &&)
           {
+
+            if (g.do_bin_packing &&
+              (part_sizes[part] - v_weight <= 0))
+              continue;
 
             if (g.max_partition_size > 0 &&
                 (part_sizes[max_part]+v_weight) > (g.max_partition_size*g.partition_capacities[max_part]))

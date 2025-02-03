@@ -2148,6 +2148,12 @@ void label_balance_edges_maxcut_weighted_interpart_capacitated(
             }
           }
 
+          if (max_part != part)
+          {
+
+            if (g.do_bin_packing &&
+				    	(part_sizes[part] - v_weight <= 0))
+              continue;
           if (max_part != part &&
 				    	(part_sizes[part] - v_weight > 0 ||
               g.do_bin_packing))
@@ -2237,7 +2243,7 @@ void label_balance_edges_maxcut_weighted_interpart_capacitated(
             if (part_cut_weights[max_part] < 0.0)
               part_cut_weights[max_part] = 0.0;
           }
-        }
+        } // end for
 
         #pragma omp atomic capture
         thread_start = next_size += thread_queue_size;
@@ -2393,10 +2399,13 @@ void label_balance_edges_maxcut_weighted_interpart_capacitated(
             if (new_max_imb < vert_balance &&
                 new_max_edge_imb < max_e &&
                 new_max_cut_imb < max_c &&
-                new_cut_imb < max_c &&
-                (part_sizes[part] > v_weight ||
-                 g.do_bin_packing))
+                new_cut_imb < max_c)
             {
+
+            if (g.do_bin_packing &&
+              (part_sizes[part] - v_weight <= 0))
+              continue;
+              
               ++num_swapped_2;
               parts[v] = max_part;
 

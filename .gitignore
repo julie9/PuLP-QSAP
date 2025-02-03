@@ -17,3 +17,6 @@ output*.txt
 
 # Ignore the generated files (VSCode)
 .vscode/settings.json
+pulp/0.2/plot.gp
+pulp/0.2/plot.png
+pulp/0.2/data.dat

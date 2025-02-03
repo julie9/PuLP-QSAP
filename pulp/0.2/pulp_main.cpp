@@ -58,6 +58,8 @@ using namespace std;
 #include "pulp.h"
 #include "io.cpp"
 
+#include "plot_gnu.c"
+
 void print_usage_full(char** argv)
 {
   printf("To run: %s [graphfile] [num parts] [options]\n\n", argv[0]);
@@ -137,7 +139,7 @@ int main(int argc, char** argv)
   bool   do_vert_balance    = false;
   bool   do_maxcut_balance  = false;
   bool   do_bin_packing     = false;
-int    max_partition_size = 0;
+  int    max_partition_size = 0;
   bool   eval_quality       = false;
   int    pulp_seed          = rand();
 
@@ -151,7 +153,7 @@ int    max_partition_size = 0;
     {
       case 'v':                               // -v flag : vertex balance
         vert_balance = strtod(optarg, NULL);
-do_vert_balance = true;
+        do_vert_balance = true;
         break;
       case 'e':                               // -e flag : edge balance
         edge_balance = strtod(optarg, NULL);
@@ -190,7 +192,7 @@ do_vert_balance = true;
       case 'b':                               // -b flag : do bin packing (minimize number of parts if possible)
         do_bin_packing = true;
         break;
-case 'a':                               // -a flag : cap the largest vertex weight to the partition capacity
+      case 'a':                               // -a flag : cap the largest vertex weight to the partition capacity
         max_partition_size = atoi(optarg);
         break;
       case '?':
@@ -242,7 +244,7 @@ case 'a':                               // -a flag : cap the largest vertex weig
   pulp_graph_t g = {
     .n                        = n,
     .m                        = m,
-        .out_array                = out_array,
+    .out_array                = out_array,
     .out_degree_list          = out_degree_list,
     .vertex_weights           = vertex_weights,
     .edge_weights             = edge_weights,
@@ -285,7 +287,7 @@ case 'a':                               // -a flag : cap the largest vertex weig
       .edge_balance                 = edge_balance,
       .do_lp_init                   = do_lp_init,
       .do_bfs_init                  = do_bfs_init,
-.do_vert_balance              = do_vert_balance,
+      .do_vert_balance              = do_vert_balance,
       .do_edge_balance              = do_edge_balance,
       .do_maxcut_balance            = do_maxcut_balance,
       .using_interpartition_weights = using_interpartition_weights,
@@ -333,7 +335,24 @@ case 'a':                               // -a flag : cap the largest vertex weig
 
     if (eval_quality)
       evaluate_quality(g, num_parts, parts);
-  }
+
+
+    // ==========================================================
+    // Plotting
+    // ==========================================================
+    if (num_partitions == 1)
+    {
+      printf("Plotting ... \n");
+      elt = timer();
+
+      generate_gnuplot_file(g.n, num_parts, parts, g.vertex_weights);
+
+      elt = timer() - elt;
+      printf("Plotting Time: %9.6lf seconds\n\n", elt);
+    }
+
+
+  } // end for num_partitions
 
   delete [] interpartition_weights;
   delete [] partition_capacities;

@@ -184,7 +184,7 @@ pulp_run(pulp_graph_t* g, pulp_part_control_t* ppc, int* parts, int num_parts)
   else if (do_label_prop &&
           (g->vertex_weights != NULL || g->edge_weights != NULL))
   {
-    if (verbose) printf("\tDoing (weighted) label prop stage with %d parts\n", num_parts);
+    if (verbose) printf("\tDoing (`label_prop_weighted`) label prop stage with %d parts\n", num_parts);
     elt2 = timer();
 
     label_prop_weighted(*g, num_parts, parts, label_prop_iter, vert_balance_lower);
@@ -199,7 +199,7 @@ pulp_run(pulp_graph_t* g, pulp_part_control_t* ppc, int* parts, int num_parts)
            g->vertex_weights != NULL &&
            do_nonrandom_init)
   {
-    if (verbose) printf("\tDoing bfs (weigthed and capacitated) init stage with %d parts\n", num_parts);
+    if (verbose) printf("\tDoing bfs (`init_nonrandom_constrained_capacity`) init stage with %d parts\n", num_parts);
     elt2 = timer();
 
     init_nonrandom_constrained_capacity(*g, num_parts, parts, vert_balance);
@@ -211,7 +211,7 @@ pulp_run(pulp_graph_t* g, pulp_part_control_t* ppc, int* parts, int num_parts)
   else if (g->vertex_weights != NULL &&
            do_nonrandom_init)
   {
-    if (verbose) printf("\tDoing bfs (size constrained) init stage with %d parts\n", num_parts);
+    if (verbose) printf("\tDoing bfs (`init_nonrandom_constrained`) init stage with %d parts\n", num_parts);
     elt2 = timer();
 
     init_nonrandom_constrained(*g, num_parts, parts);
@@ -267,7 +267,7 @@ pulp_run(pulp_graph_t* g, pulp_part_control_t* ppc, int* parts, int num_parts)
              (g->vertex_weights != NULL ||
              g->edge_weights != NULL))
     {
-      if (verbose) printf("\t\tDoing (weighted, capacitated, with interpart weigths) vert balance and refinement stage\n");
+      if (verbose) printf("\t\tDoing (`label_balance_verts_weighted_interpart_capacity`) vert balance and refinement stage\n");
       elt3 = timer();
 
       label_balance_verts_weighted_interpart_capacity(*g, num_parts, parts,
@@ -283,7 +283,7 @@ pulp_run(pulp_graph_t* g, pulp_part_control_t* ppc, int* parts, int num_parts)
              (g->vertex_weights != NULL ||
              g->edge_weights != NULL))
     {
-      if (verbose) printf("\t\tDoing (weighted with interpart weights) vert balance and refinement stage\n");
+      if (verbose) printf("\t\tDoing (`label_balance_verts_weighted_interpart`) vert balance and refinement stage\n");
       elt3 = timer();
 
       label_balance_verts_weighted_interpart(*g, num_parts, parts,
@@ -296,7 +296,7 @@ pulp_run(pulp_graph_t* g, pulp_part_control_t* ppc, int* parts, int num_parts)
     // .........................................................................
     else if (do_vert_balance)
     {
-      if (verbose) printf("\t\tDoing (weighted) vert balance and refinement stage\n");
+      if (verbose) printf("\t\tDoing (`label_balance_verts_weighted`) vert balance and refinement stage\n");
       elt3 = timer();
 
       label_balance_verts_weighted(*g, num_parts, parts,

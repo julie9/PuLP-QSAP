@@ -1,6 +1,9 @@
 CXX=g++
 
-CXXFLAGS=-fopenmp -O3 -Wall -Wextra -g
+CXXFLAGS=-fopenmp -O3 -Wall -Wextra
+
+# --- Uncomment the following line to enable debugging ---
+# CXXFLAGS=-fopenmp -O3 -Wall -Wextra -g
 
 # --- Uncomment the following line to enable sanitizers ---
 # CXXFLAGS=-fopenmp -O3 -Wall -Wextra -g -fsanitize=address -fsanitize=undefined -fsanitize=leak -fsanitize=pointer-subtract -fsanitize=pointer-compare -fsanitize=pointer-overflow

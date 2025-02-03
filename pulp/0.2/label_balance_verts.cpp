@@ -1704,7 +1704,7 @@ label_balance_verts_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, 
           // -----------------------------------------------------
           // Swap vertex v to the partition with the maximum count
           // -----------------------------------------------------
-          if (max_part != part &&)
+          if (max_part != part)
           {
 
             if (g.do_bin_packing &&

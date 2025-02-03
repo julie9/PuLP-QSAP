@@ -1471,9 +1471,17 @@ void label_balance_edges_maxcut_weighted_interpart(
             }
           }
 
-          if (max_part != part &&
-				    	part_sizes[part] - v_weight > 0)
+          if (max_part != part)
           {
+
+            if (g.do_bin_packing &&
+              (part_sizes[part] - v_weight <= 0))
+              continue;
+
+            if (g.max_partition_size > 0 &&
+                (part_sizes[max_part]+v_weight) > (g.max_partition_size*g.partition_capacities[max_part]))
+              continue;
+
             parts[v] = max_part;
             ++num_swapped_1;
             int diff_part     = 2 * part_count - sum_weights;
@@ -1486,7 +1494,7 @@ void label_balance_edges_maxcut_weighted_interpart(
             #pragma omp atomic
             part_cut_sizes[max_part] += diff_max_part;
             #pragma omp atomic
-            part_sizes[part] -= v_weight;
+            part_sizes[part]     -= v_weight;
             #pragma omp atomic
             part_sizes[max_part] += v_weight;
             #pragma omp atomic
@@ -1698,6 +1706,14 @@ void label_balance_edges_maxcut_weighted_interpart(
   				// SWAP IF IMPROVEMENT (only if it improves the balance ratios)
           if (max_part != part)
           {
+            if (g.do_bin_packing &&
+              (part_sizes[part] - v_weight <= 0))
+              continue;
+
+            if (g.max_partition_size > 0 &&
+                (part_sizes[max_part]+v_weight) > (g.max_partition_size*g.partition_capacities[max_part]))
+              continue;
+
             int    diff_part        = 2*part_count - sum_weights;
             int    diff_max_part    = sum_weights - 2*max_count;
             int    diff_cut         = diff_part + diff_max_part;
@@ -2152,12 +2168,13 @@ void label_balance_edges_maxcut_weighted_interpart_capacitated(
           {
 
             if (g.do_bin_packing &&
-				    	(part_sizes[part] - v_weight <= 0))
+              (part_sizes[part] - v_weight <= 0))
               continue;
-          if (max_part != part &&
-				    	(part_sizes[part] - v_weight > 0 ||
-              g.do_bin_packing))
-          {
+
+            if (g.max_partition_size > 0 &&
+                (part_sizes[max_part]+v_weight) > (g.max_partition_size*g.partition_capacities[max_part]))
+              continue;
+
             parts[v] = max_part;
             ++num_swapped_1;
 
@@ -2173,11 +2190,11 @@ void label_balance_edges_maxcut_weighted_interpart_capacitated(
             #pragma omp atomic
             part_cut_sizes[max_part] += diff_max_part;
             #pragma omp atomic
-            part_sizes[part] -= v_weight;
+            part_sizes[part]     -= v_weight;
             #pragma omp atomic
             part_sizes[max_part] += v_weight;
             #pragma omp atomic
-            part_edge_sizes[part] -= out_degree;
+            part_edge_sizes[part]     -= out_degree;
             #pragma omp atomic
             part_edge_sizes[max_part] += out_degree;
 
@@ -2388,6 +2405,14 @@ void label_balance_edges_maxcut_weighted_interpart_capacitated(
   				// SWAP IF IMPROVEMENT (only if it improves the balance ratios)
           if (max_part != part)
           {
+            if (g.do_bin_packing &&
+              (part_sizes[part] - v_weight <= 0))
+              continue;
+
+            if (g.max_partition_size > 0 &&
+                (part_sizes[max_part]+v_weight) > (g.max_partition_size*g.partition_capacities[max_part]))
+              continue;
+
             int diff_part     = 2*part_count - sum_weights;
             int diff_max_part = sum_weights - 2*max_count;
             int diff_cut      = diff_part + diff_max_part;
@@ -2401,11 +2426,6 @@ void label_balance_edges_maxcut_weighted_interpart_capacitated(
                 new_max_cut_imb < max_c &&
                 new_cut_imb < max_c)
             {
-
-            if (g.do_bin_packing &&
-              (part_sizes[part] - v_weight <= 0))
-              continue;
-              
               ++num_swapped_2;
               parts[v] = max_part;
 
@@ -2467,9 +2487,9 @@ void label_balance_edges_maxcut_weighted_interpart_capacitated(
                   }
                 }
               }
-            }
-          }
-        }
+            } // end if refinement improves balance
+          } // end if (max_part != part)
+        } // end for loop over vertices
 
         #pragma omp atomic capture
         thread_start = next_size += thread_queue_size;

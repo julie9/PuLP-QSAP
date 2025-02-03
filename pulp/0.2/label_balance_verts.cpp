@@ -105,14 +105,14 @@ void label_balance_verts(pulp_graph_t& g, int num_parts, int* parts,
 
     for (int p = 0; p < num_parts; ++p)
     {
-if (part_sizes[p] == 0)
+      if (part_sizes[p] == 0)
         part_weights[p] = numeric_limits<double>::max();
       else
       {
-      part_weights[p] = (vert_balance * avg_size / (double)part_sizes[p]) - 1.0;
-      if (part_weights[p] < 0.0)
-        part_weights[p] = 0.0;
-}
+        part_weights[p] = (vert_balance * avg_size / (double)part_sizes[p]) - 1.0;
+        if (part_weights[p] < 0.0)
+          part_weights[p] = 0.0;
+      }
     }
 
     while(t < vert_outer_iter)
@@ -495,7 +495,7 @@ void label_balance_verts_weighted(
     for (int p = 0; p < num_parts; ++p)
     {
       if (part_sizes[p] == 0)
-        part_weights[p] = numeric_limits<double>::max();
+        part_weights[p] = 1; //numeric_limits<double>::max();
         //TODO(julie): max here is not aligned with the idea of bin packing
         //where we want to minimize the number of bins
       else
@@ -568,12 +568,7 @@ void label_balance_verts_weighted(
 
             if (g.max_partition_size > 0 &&
                 part_sizes[max_part] + v_weight > g.max_partition_size)
-            {
-              // printf("max partition size reached for part %d\n", max_part);
-              continue;
-            }
-            // printf("Swapping vertex from part %d to part %d (size %ld -> %ld)\n",
-            //         part, max_part, part_sizes[part], part_sizes[max_part]);
+                continue;
 
             parts[v] = max_part;
             ++num_swapped_1;
@@ -715,13 +710,8 @@ void label_balance_verts_weighted(
 
             if (g.max_partition_size > 0 &&
                 part_sizes[max_part] + v_weight > g.max_partition_size)
-            {
-              printf("max partition size reached for part %d (refine stage)\n", max_part);
               continue;
-            }
-            printf("Swapping vertex from part %d to part %d (refine, size %ld -> %ld)\n",
-                    part, max_part, part_sizes[part], part_sizes[max_part]);
-
+            
             double new_max_imb = (double)(part_sizes[max_part] + v_weight) / avg_size;
             if (new_max_imb < vert_balance)
             {
@@ -927,7 +917,7 @@ label_balance_verts_weighted_interpart(pulp_graph_t& g, int num_parts, int* part
     for (int p = 0; p < num_parts; ++p)
     {
       if (part_sizes[p] == 0)
-        part_weights[p] = numeric_limits<double>::max();
+        part_weights[p] = 1; // numeric_limits<double>::max();
       else if (g.max_partition_size > 0 &&
                part_sizes[p] > g.max_partition_size)
       {
@@ -937,8 +927,8 @@ label_balance_verts_weighted_interpart(pulp_graph_t& g, int num_parts, int* part
       else
       {
         part_weights[p] = (vert_balance * avg_size / (double)part_sizes[p]) - 1.0;
-      if (part_weights[p] < 0.0)
-        part_weights[p] = 0.0;
+                if (part_weights[p] < 0.0)
+                  part_weights[p] = 0.0;
       }
     }
 
@@ -1041,6 +1031,11 @@ label_balance_verts_weighted_interpart(pulp_graph_t& g, int num_parts, int* part
               ((part_sizes[part] - v_weight) > 0 || // and if the partition is not empty
                g.do_bin_packing))                   // or bin packing is enabled
           {
+
+            if (g.max_partition_size > 0 &&
+                part_sizes[max_part] + v_weight > g.max_partition_size)
+              continue;
+
             parts[v] = max_part; // reassign vertex v to the largest partition
             ++num_swapped_1;     // increment the number of vertices swapped
 
@@ -1205,6 +1200,11 @@ label_balance_verts_weighted_interpart(pulp_graph_t& g, int num_parts, int* part
 					    ((part_sizes[part] - v_weight) > 0 || // and if the partition is not empty
                g.do_bin_packing))
           {
+
+            if (g.max_partition_size > 0 &&
+                (part_sizes[max_part]+v_weight) > (g.max_partition_size*g.partition_capacities[max_part]))
+              continue;
+
             double new_max_imb = (double)(part_sizes[max_part] + v_weight) / avg_size;
 
             if (new_max_imb < vert_balance)
@@ -1364,10 +1364,19 @@ label_balance_verts_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, 
   for (int i = 0; i < num_parts; ++i)
     part_sizes[i] = 0;
 
-  double  unit_avg_size = (double)g.vertex_weights_sum / (double)g.partition_capacities_sum;
+
   double* avg_sizes     = new double[num_parts];
   for (int i = 0; i < num_parts; ++i)
-    avg_sizes[i] = unit_avg_size * g.partition_capacities[i];
+  {
+     if (g.max_partition_size > 0)
+      avg_sizes[i] = (double)g.max_partition_size * (double)g.partition_capacities[i];
+    else
+    {
+      double unit_avg_size = (double)g.vertex_weights_sum / (double)g.partition_capacities_sum;
+      avg_sizes[i] = unit_avg_size * g.partition_capacities[i];
+    }
+    printf("avg_sizes[%d] = %lf\n", i, avg_sizes[i]);
+  }
 
   int    num_swapped_1 = 0;
   int    num_swapped_2 = 0;
@@ -1411,15 +1420,17 @@ label_balance_verts_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, 
     int thread_queue_size = 0;
     int thread_start;
 
+    printf("part_sizes          part_weights        avg_sizes\n");
     for (int p = 0; p < num_parts; ++p)
     {
       if (part_sizes[p] == 0)
-        part_weights[p] = numeric_limits<double>::max();
+        part_weights[p] = 1; //numeric_limits<double>::max();
       else
       {
         part_weights[p] = (vert_balance * avg_sizes[p] / (double)part_sizes[p]) - 1.0;
         if (part_weights[p] < 0.0) part_weights[p] = 0.0;
       }
+      printf("%20ld %20lf %20lf\n", part_sizes[p], part_weights[p], avg_sizes[p]);
     }
 
     // ======================================================
@@ -1521,6 +1532,7 @@ label_balance_verts_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, 
               ((part_sizes[part] - v_weight) > 0 || // and if the partition is not empty
                g.do_bin_packing))
           {
+
             if (g.max_partition_size > 0 &&
                 (part_sizes[max_part]+v_weight) > (g.max_partition_size*g.partition_capacities[max_part]))
               continue;

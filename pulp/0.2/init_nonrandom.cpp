@@ -170,6 +170,13 @@ int* init_nonrandom(pulp_graph_t& g, int num_parts, int* parts)
 // constrain to approximately equal part sizes, randomly assign any remaining.
 int* init_nonrandom_constrained(pulp_graph_t& g, int num_parts, int* parts)
 {
+bool has_vwgts = (g.vertex_weights != NULL);
+  if (!has_vwgts)
+  {
+    printf("Error: vertex weights required for size-constrained init\n");
+    exit(0);
+  }
+
   int num_verts = g.n;
 
   int* queue      = new int[num_verts*QUEUE_MULTIPLIER];
@@ -206,7 +213,7 @@ int* init_nonrandom_constrained(pulp_graph_t& g, int num_parts, int* parts)
         while (parts[vert] != -1) {vert = xs1024star_next(&xs) % num_verts;}
         parts[vert]   = i;
         queue[i]      = vert;
-        part_sizes[i] = 1;
+        part_sizes[i] = g.vertex_weights[vert];
       }
     }
 
@@ -225,16 +232,16 @@ int* init_nonrandom_constrained(pulp_graph_t& g, int num_parts, int* parts)
           int out = outs[j];
           if (parts[out] == -1)
           {
-            // If part size is less than max_part_size (x2 average size),
+            // If part size is less than max_partition_size (x2 average size),
             // assign it to the same part as the start point.
             // Otherwise, assign it to a random part
-            if (part_sizes[part] < max_part_size)
+            if ((part_sizes[part] + g.vertex_weights[out]) < max_partition_size)
               parts[out] = part;
             else
               parts[out] = (int)((unsigned)xs1024star_next(&xs) % (unsigned)num_parts);
 
             #pragma omp atomic
-            ++part_sizes[parts[out]]; // increment part size
+            part_sizes[parts[out]] += g.vertex_weights[out]; // increment part size
 
             // thread_queue is a local array within each thread, used to
             // temporarily store vertices that need to be processed in the next

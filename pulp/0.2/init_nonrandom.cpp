@@ -56,12 +56,16 @@ extern int seed;
 ##     ## ##       ##    ##     ##  ##   ###  ##     ##
 ########  ##        ######     #### ##    ## ####    ##
 */
+
 // multi-source bfs with random start points
 int* init_nonrandom(pulp_graph_t& g, int num_parts, int* parts)
 {
   int  num_verts  = g.n;
   int* queue      = new int[num_verts*QUEUE_MULTIPLIER];
-  int* queue_next = new int[num_verts*QUEUE_MULTIPLIER];
+  int* queue_next = new int[num_verts*QUEUE_MULTIPLIER];   // The use of a QUEUE_MULTIPLIER of 2 in the code is likely a heuristic choice
+  // to ensure that the queue has enough capacity to handle the vertices that
+  // need to be processed during the breadth-first search (BFS) without running
+  // out of space.
   int  queue_size = num_parts;
   int  next_size  = 0;
 
@@ -74,18 +78,21 @@ int* init_nonrandom(pulp_graph_t& g, int num_parts, int* parts)
     xs1024star_t xs;
     xs1024star_seed((unsigned long)(seed + omp_get_thread_num()), &xs);
 
+    // Initialize parts to -1 (not yet assigned to a part)
     #pragma omp for
     for (int i = 0; i < num_verts; ++i)
       parts[i] = -1;
 
+    // Randomly assign start points to parts
     #pragma omp single
     {
       for (int i = 0; i < num_parts; ++i)
       {
-        int   vert = (int)xs1024star_next(&xs) % num_verts;                        // random start point
-        while (parts[vert] != -1) {vert = (int)xs1024star_next(&xs) % num_verts;}  // random start point not already taken
-        parts[vert] = i;                                                           // assign start point to part i
-        queue[i]    = vert;                                                        // add start point to queue
+        int vert = (int)xs1024star_next(&xs) % num_verts;  // random start point
+        while (parts[vert] != -1)
+          vert = (int)xs1024star_next(&xs) % num_verts;    // random start point not already taken
+        parts[vert] = i;                                   // assign start point to part i
+        queue[i]    = vert;                                // add start point to queue
       }
     }
 
@@ -103,7 +110,7 @@ int* init_nonrandom(pulp_graph_t& g, int num_parts, int* parts)
           int out = outs[j];
           if (parts[out] == -1)
           {
-            parts[out]                        = part;
+            parts[out]                        = part; // assign part to out vertex
             thread_queue[thread_queue_size++] = out;
 
             if (thread_queue_size == THREAD_QUEUE_SIZE)
@@ -166,11 +173,12 @@ int* init_nonrandom(pulp_graph_t& g, int num_parts, int* parts)
 ##     ## ##       ##    ##     ##  ##   ###  ##     ##       ##    ##  ##   ##      ##
 ########  ##        ######     #### ##    ## ####    ##        ######  #### ######## ########
 */
+
 // multi-source bfs with random start points
 // constrain to approximately equal part sizes, randomly assign any remaining.
 int* init_nonrandom_constrained(pulp_graph_t& g, int num_parts, int* parts)
 {
-bool has_vwgts = (g.vertex_weights != NULL);
+  bool has_vwgts = (g.vertex_weights != NULL);
   if (!has_vwgts)
   {
     printf("Error: vertex weights required for size-constrained init\n");
@@ -181,15 +189,16 @@ bool has_vwgts = (g.vertex_weights != NULL);
 
   int* queue      = new int[num_verts*QUEUE_MULTIPLIER];
   int* queue_next = new int[num_verts*QUEUE_MULTIPLIER];
-  // The use of a QUEUE_MULTIPLIER of 2 in the code is likely a heuristic choice
-  // to ensure that the queue has enough capacity to handle the vertices that
-  // need to be processed during the breadth-first search (BFS) without running
-  // out of space.
+
   int* part_sizes = new int[num_parts];
   int  queue_size = num_parts;
   int  next_size  = 0;
 
-  int  max_part_size = num_verts / num_parts * 2; // 2x average part size
+  int  max_partition_size = num_verts / num_parts * 2; // 2x average part size
+  if (g.max_partition_size > 0)
+    max_partition_size = g.max_partition_size; // max_partition_size is user-defined
+
+  int rand_count = 0; //debug
 
   #pragma omp parallel
   {
@@ -238,7 +247,24 @@ bool has_vwgts = (g.vertex_weights != NULL);
             if ((part_sizes[part] + g.vertex_weights[out]) < max_partition_size)
               parts[out] = part;
             else
-              parts[out] = (int)((unsigned)xs1024star_next(&xs) % (unsigned)num_parts);
+            {
+              int new_part = -1;
+              for (int i = 0; i < num_parts; ++i)
+              {
+                new_part = (new_part + 1) % num_parts; // Move to the next part
+                if ((part_sizes[new_part] + g.vertex_weights[out]) < max_partition_size)
+                {
+                  parts[out] = new_part;
+                  break;
+                }
+              }
+              if (parts[out] == -1)
+              {
+                parts[out] = (int)((unsigned)xs1024star_next(&xs) % (unsigned)num_parts);
+                printf("Random assignment (1) for vertex %d of size %d on part %d\n", out, g.vertex_weights[out], parts[out]);
+                rand_count++;
+              }
+            }
 
             #pragma omp atomic
             part_sizes[parts[out]] += g.vertex_weights[out]; // increment part size
@@ -295,8 +321,28 @@ bool has_vwgts = (g.vertex_weights != NULL);
     #pragma omp for
     for (int i = 0; i < num_verts; ++i)
       if (parts[i] == -1)
-        parts[i] = (int)((unsigned)xs1024star_next(&xs) % (unsigned)num_parts);
+        {
+          int new_part = -1;
+          for (int attempt = 0; attempt < RANDOM_BFS_TRIES; ++attempt)
+          {
+              new_part = (int)((unsigned)xs1024star_next(&xs) % (unsigned)num_parts);
+              if ((part_sizes[new_part] + g.vertex_weights[i]) < max_partition_size)
+              {
+                  parts[attempt] = new_part;
+                  break;
+              }
+          }
+
+          // If no valid part was found after RANDOM_BFS_TRIES, assign to a random part
+          if (parts[i] == -1)
+          {
+            parts[i] = (int)((unsigned)xs1024star_next(&xs) % (unsigned)num_parts);
+            rand_count++;
+          }
+        }
   } // end parallel
+
+  printf("Random assignments: %d\n", rand_count);
 
   #if OUTPUT_STEP
     evaluate_quality(g, num_parts, parts);
@@ -320,11 +366,14 @@ bool has_vwgts = (g.vertex_weights != NULL);
 ##     ## ##       ##    ##    ##    ## ##     ## ##        ##     ## ##    ##  ##     ##       ##        ##  ##   ###  ##     ##
 ########  ##        ######      ######  ##     ## ##        ##     ##  ######  ####    ##       ##       #### ##    ## ####    ##
 */
+
 // multi-source bfs with random start points
-// constrain to capacity, randomly assign any remaining.
+// part with heterogeneous capacities, randomly assign any remaining.
 int*
 init_nonrandom_constrained_capacity(pulp_graph_t& g, int num_parts, int* parts, int vertex_balance)
 {
+  int rand_count = 0; //debug
+
   bool has_vwgts        = (g.vertex_weights != NULL);
   bool has_p_capacities = (g.partition_capacities != NULL);
 
@@ -342,7 +391,19 @@ init_nonrandom_constrained_capacity(pulp_graph_t& g, int num_parts, int* parts, 
   int  queue_size = num_parts;
   int  next_size  = 0;
 
-  double unit_capacity_wgts = (double)g.vertex_weights_sum / (double)g.partition_capacities_sum;
+  int* max_partition_size = new int[num_parts];
+  if (g.max_partition_size > 0)
+    for (int i = 0; i < num_parts; ++i)
+    {
+      max_partition_size[i] = g.max_partition_size * g.partition_capacities[i];
+      printf("max_partition_size[%d] = %d\n", i, max_partition_size[i]);
+    }
+  else
+  {
+    double unit_capacity_wgts = (double)g.vertex_weights_sum / (double)g.partition_capacities_sum;
+    for (int i = 0; i < num_parts; ++i)
+      max_partition_size[i] = vertex_balance * g.partition_capacities[i] * unit_capacity_wgts * vertex_balance;
+  }
 
   int random_assignments = 0; // Counter for random assignments
 
@@ -388,18 +449,26 @@ init_nonrandom_constrained_capacity(pulp_graph_t& g, int num_parts, int* parts, 
           int out = outs[j];
           if (parts[out] == -1) // If part not assigned yet
           {
-            // If part size is less than max_part_size (x2 average size),
-            // assign it to the same part as the start point.
-            // Otherwise, assign it to a random part
-            if (part_sizes[part]
-                < (int)(g.partition_capacities[part] * unit_capacity_wgts) * vertex_balance)
-              parts[out] = part;
+            if ((part_sizes[part] + g.vertex_weights[out]) < max_partition_size[part])
+                parts[out] = part;
             else
             {
-              // TODO(julie): use statistical distribution of partition capacity to assign parts
-              parts[out] = (int)((unsigned)xs1024star_next(&xs) % (unsigned)num_parts);
-              #pragma omp atomic
-              ++random_assignments; // Increment the counter for random assignments
+              for (int new_part = 0; new_part < num_parts; ++new_part)
+              {
+                  if ((part_sizes[new_part] + g.vertex_weights[out]) < max_partition_size[new_part])
+                  {
+                      parts[out] = new_part;
+                      break;
+                  }
+              }
+              if (parts[out] == -1)
+              {
+                parts[out] = (int)((unsigned)xs1024star_next(&xs) % (unsigned)num_parts);
+
+                printf("Random assignment (1) for vertex %d of size %d on part %d\n", out, g.vertex_weights[out], parts[out]);
+                #pragma omp atomic
+                rand_count++;
+              }
             }
 
             // Update the part size with the vertex weight of the new vertex
@@ -456,12 +525,24 @@ init_nonrandom_constrained_capacity(pulp_graph_t& g, int num_parts, int* parts, 
     for (int i = 0; i < num_verts; ++i)
       if (parts[i] == -1)
       {
-        parts[i] = (int)((unsigned)xs1024star_next(&xs) % (unsigned)num_parts);
-
-        #pragma omp atomic
-        ++random_assignments; // Increment the counter for random assignments
+        for (int new_part = 0; new_part < num_parts; ++new_part)
+        {
+            if ((part_sizes[new_part] + g.vertex_weights[i]) < max_partition_size[new_part])
+            {
+                parts[i] = new_part;
+                break;
+            }
+        }
+        if (parts[i] == -1)
+        {
+          parts[i] = (int)((unsigned)xs1024star_next(&xs) % (unsigned)num_parts);
+          #pragma omp atomic
+          rand_count++;
+        }
       }
   } // end parallel
+
+  printf("Random assignments: %d\n", rand_count);
 
   #if OUTPUT_STEP
     evaluate_quality(g, num_parts, parts);

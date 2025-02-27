@@ -1474,8 +1474,8 @@ void label_balance_edges_maxcut_weighted_interpart(
           if (max_part != part)
           {
 
-            if (g.do_bin_packing &&
-              (part_sizes[part] - v_weight <= 0))
+            // Unless in bin packing mode, do not move a vertex if it would empty its partition
+            if (!g.do_bin_packing && (part_sizes[part] - v_weight <= 0))
               continue;
 
             if (g.max_partition_size > 0 &&
@@ -1706,8 +1706,8 @@ void label_balance_edges_maxcut_weighted_interpart(
   				// SWAP IF IMPROVEMENT (only if it improves the balance ratios)
           if (max_part != part)
           {
-            if (g.do_bin_packing &&
-              (part_sizes[part] - v_weight <= 0))
+            // Unless in bin packing mode, do not move a vertex if it would empty its partition
+            if (!g.do_bin_packing && (part_sizes[part] - v_weight <= 0))
               continue;
 
             if (g.max_partition_size > 0 &&
@@ -1893,10 +1893,10 @@ void label_balance_edges_maxcut_weighted_interpart(
 :...::...:::...:::::....::...::::::......:::..:::::..::..:::::::::...:::::........::........::::......::::........:::::........:::..:::::..::........::
 */
 
-void label_balance_edges_maxcut_weighted_interpart_capacitated(
-  pulp_graph_t& g, int num_parts, int* parts,
-  int edge_outer_iter, int edge_balance_iter, int edge_refine_iter,
-  double vert_balance, double edge_balance)
+void
+label_balance_edges_maxcut_weighted_interpart_capacitated(pulp_graph_t& g, int num_parts, int* parts,
+                                                          int edge_outer_iter, int edge_balance_iter, int edge_refine_iter,
+                                                          double vert_balance, double edge_balance)
 {
   bool has_ipwgts        = (g.interpartition_weights != NULL);
   bool has_p_capacities  = (g.partition_capacities != NULL);
@@ -2166,14 +2166,17 @@ void label_balance_edges_maxcut_weighted_interpart_capacitated(
 
           if (max_part != part)
           {
-
-            if (g.do_bin_packing &&
-              (part_sizes[part] - v_weight <= 0))
+            // Unless in bin packing mode, do not move a vertex if it would empty its partition
+            if (!g.do_bin_packing && (part_sizes[part] - v_weight <= 0))
               continue;
 
             if (g.max_partition_size > 0 &&
                 (part_sizes[max_part]+v_weight) > (g.max_partition_size*g.partition_capacities[max_part]))
+            {
+              printf("WARNING: Max partition size exceeded on part %d: %d + %d > %d * %d\n",
+                     max_part, part_sizes[max_part], v_weight, g.max_partition_size, g.partition_capacities[max_part]);
               continue;
+            }
 
             parts[v] = max_part;
             ++num_swapped_1;
@@ -2189,10 +2192,12 @@ void label_balance_edges_maxcut_weighted_interpart_capacitated(
             part_cut_sizes[part]     += diff_part;
             #pragma omp atomic
             part_cut_sizes[max_part] += diff_max_part;
+
             #pragma omp atomic
             part_sizes[part]     -= v_weight;
             #pragma omp atomic
             part_sizes[max_part] += v_weight;
+
             #pragma omp atomic
             part_edge_sizes[part]     -= out_degree;
             #pragma omp atomic
@@ -2405,13 +2410,17 @@ void label_balance_edges_maxcut_weighted_interpart_capacitated(
   				// SWAP IF IMPROVEMENT (only if it improves the balance ratios)
           if (max_part != part)
           {
-            if (g.do_bin_packing &&
-              (part_sizes[part] - v_weight <= 0))
+            // Unless in bin packing mode, do not move a vertex if it would empty its partition
+            if (!g.do_bin_packing && (part_sizes[part] - v_weight <= 0))
               continue;
 
             if (g.max_partition_size > 0 &&
                 (part_sizes[max_part]+v_weight) > (g.max_partition_size*g.partition_capacities[max_part]))
+            {
+              printf("WARNING: Max partition size exceeded on part %d: %d + %d > %d * %d\n",
+                     max_part, part_sizes[max_part], v_weight, g.max_partition_size, g.partition_capacities[max_part]);
               continue;
+            }
 
             int diff_part     = 2*part_count - sum_weights;
             int diff_max_part = sum_weights - 2*max_count;

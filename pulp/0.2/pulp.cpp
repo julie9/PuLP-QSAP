@@ -121,6 +121,7 @@ pulp_run(pulp_graph_t* g, pulp_part_control_t* ppc, int* parts, int num_parts)
 		printf("\tdo_maxcut_balance: %s\n", do_maxcut_balance ? "true" : "false");
     printf("\tusing_interpartition_weights: %s\n", using_interpartition_weights ? "true" : "false");
     printf("\tusing_partition_capacities: %s\n", using_partition_capacities ? "true" : "false");
+    printf("\tmax_partition_size: %d\n", g->max_partition_size);
 		printf("\tnum_parts: %d\n", num_parts);
     printf("\tvert_balance: %lf\n", vert_balance);
     printf("\tedge_balance: %lf\n", edge_balance);

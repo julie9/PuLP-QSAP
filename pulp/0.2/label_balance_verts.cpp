@@ -1029,9 +1029,8 @@ label_balance_verts_weighted_interpart(pulp_graph_t& g, int num_parts, int* part
           // -----------------------------------------------------
           if (max_part != part)
           {
-
-            if (g.do_bin_packing &&
-              (part_sizes[part] - v_weight <= 0))
+            // Unless in bin packing mode, do not move a vertex if it would empty its partition
+            if (!g.do_bin_packing && (part_sizes[part] - v_weight <= 0))
               continue;
 
             if (g.max_partition_size > 0 &&
@@ -1201,12 +1200,12 @@ label_balance_verts_weighted_interpart(pulp_graph_t& g, int num_parts, int* part
           if (max_part != part)
           {
 
-            if (g.do_bin_packing &&
-              (part_sizes[part] - v_weight <= 0))
+            // Unless in bin packing mode, do not move a vertex if it would empty its partition
+            if (!g.do_bin_packing && (part_sizes[part] - v_weight <= 0))
               continue;
 
             if (g.max_partition_size > 0 &&
-                (part_sizes[max_part]+v_weight) > (g.max_partition_size*g.partition_capacities[max_part]))
+                (part_sizes[max_part]+v_weight) > g.max_partition_size)
               continue;
 
             double new_max_imb = (double)(part_sizes[max_part] + v_weight) / avg_size;
@@ -1368,11 +1367,10 @@ label_balance_verts_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, 
   for (int i = 0; i < num_parts; ++i)
     part_sizes[i] = 0;
 
-
   double* avg_sizes     = new double[num_parts];
   for (int i = 0; i < num_parts; ++i)
   {
-     if (g.max_partition_size > 0)
+    if (g.max_partition_size > 0) // if max_partition_size is set
       avg_sizes[i] = (double)g.max_partition_size * (double)g.partition_capacities[i];
     else
     {
@@ -1534,14 +1532,19 @@ label_balance_verts_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, 
           // -----------------------------------------------------
           if (max_part != part)
           {
-
-            if (g.do_bin_packing &&
-              (part_sizes[part] - v_weight <= 0))
+            // Unless in bin packing mode, do not move a vertex if it would empty its partition
+            if (!g.do_bin_packing && (part_sizes[part] - v_weight <= 0))
+            {
               continue;
+            }
 
             if (g.max_partition_size > 0 &&
                 (part_sizes[max_part]+v_weight) > (g.max_partition_size*g.partition_capacities[max_part]))
+            {
+              printf("WARNING: Max partition size exceeded on part %d: %ld + %d > %d * %d\n",
+                     max_part, part_sizes[max_part], v_weight, g.max_partition_size, g.partition_capacities[max_part]);
               continue;
+            }
 
             parts[v] = max_part; // reassign vertex v to the largest partition
             ++num_swapped_1;     // increment the number of vertices swapped
@@ -1551,7 +1554,6 @@ label_balance_verts_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, 
             #pragma omp atomic
             part_sizes[part]     -= v_weight;
 
-            //TODO(julie9): This is a place where the capacity has to be used.
             part_weights[part]     = (vert_balance * avg_sizes[part] / (double)part_sizes[part]) - 1.0;
             part_weights[max_part] = (vert_balance * avg_sizes[part] / (double)part_sizes[max_part]) - 1.0;
 
@@ -1706,14 +1708,19 @@ label_balance_verts_weighted_interpart_capacity(pulp_graph_t& g, int num_parts, 
           // -----------------------------------------------------
           if (max_part != part)
           {
-
             if (g.do_bin_packing &&
-              (part_sizes[part] - v_weight <= 0))
+                (part_sizes[part] - v_weight <= 0))
+            {
               continue;
+            }
 
             if (g.max_partition_size > 0 &&
                 (part_sizes[max_part]+v_weight) > (g.max_partition_size*g.partition_capacities[max_part]))
+            {
+              printf("WARNING: Max partition size exceeded: %ld + %d > %d * %d (on part %d)\n",
+                     part_sizes[max_part], v_weight, g.max_partition_size, g.partition_capacities[max_part], max_part);
               continue;
+            }
 
             double new_max_imb = (double)(part_sizes[max_part] + v_weight)
                                          / avg_sizes[max_part];

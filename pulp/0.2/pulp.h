@@ -61,7 +61,6 @@
 //typedef int32_t pulp_vert_t;
 
 typedef struct {
-  // TODO(julie): order the struct (or create another for optional argument), if it can help the compiler to optimize?
   int   n; // number of vertices
   long  m; // number of edges
   int*  out_array;

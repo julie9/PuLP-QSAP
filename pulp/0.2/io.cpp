@@ -127,6 +127,8 @@ read_graph(char* filename, int& n, long& m,
            int*& out_array, long*& out_degree_list,
            int*& vertex_weights, int*& edge_weights, long& vertex_weights_sum)
 {
+  printf("Reading graph from file %s\n", filename);
+
   ifstream infile;
   string line;
   int format = 0;
@@ -184,42 +186,44 @@ void
 read_partition_capacities(const char* filename, int num_elements,
                           int*& partition_capacities, long& partition_capacities_sum)
 {
-    std::ifstream file(filename);
-    if (!file.is_open())
+  printf("Reading capacities from file %s\n", filename);
+
+  std::ifstream file(filename);
+  if (!file.is_open())
+  {
+    std::cerr << "Error: Could not open file " << filename << std::endl;
+    std::abort();
+  }
+
+  partition_capacities     = new int[num_elements];
+  partition_capacities_sum = 0;
+  int count = 0;
+  std::string line;
+
+  while (count < num_elements && std::getline(file, line))
+  {
+    std::istringstream iss(line);
+    int capacity;
+    while (count < num_elements && iss >> capacity)
     {
-        std::cerr << "Error: Could not open file " << filename << std::endl;
-        std::abort();
+      partition_capacities[count++] = capacity;
+      partition_capacities_sum     += capacity;
     }
+  }
 
-    partition_capacities     = new int[num_elements];
-    partition_capacities_sum = 0;
-    int count = 0;
-    std::string line;
+  if (count != num_elements)
+  {
+    std::cerr << "Error: The number of integers in the file is less than expected." << std::endl;
+    delete[] partition_capacities;
+    std::abort();
+  }
 
-    while (count < num_elements && std::getline(file, line))
-    {
-        std::istringstream iss(line);
-        int capacity;
-        while (count < num_elements && iss >> capacity)
-        {
-            partition_capacities[count++] = capacity;
-            partition_capacities_sum     += capacity;
-        }
-    }
+  // printf("\npartition_weights = ");
+  // for (int i = 0; i < num_elements; ++i)
+  //     printf("%d ", partition_capacities[i]);
+  // printf("\n");
 
-    if (count != num_elements)
-    {
-        std::cerr << "Error: The number of integers in the file is less than expected." << std::endl;
-        delete[] partition_capacities;
-        std::abort();
-    }
-
-    // printf("\npartition_weights = ");
-    // for (int i = 0; i < num_elements; ++i)
-    //     printf("%d ", partition_capacities[i]);
-    // printf("\n");
-
-    file.close();
+  file.close();
 }
 
 
